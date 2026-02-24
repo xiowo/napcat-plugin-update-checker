@@ -1,0 +1,3554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>更新检查器 · 控制台</title>
+  <script src="static/plugin-info.js" onerror="console.warn('plugin-info.js 加载失败，将使用 fallback 逻辑')"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#e8b896',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] {
+      display: none !important;
+    }
+
+    /* 禁止文本选中 */
+    .no-select {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+
+    :root {
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+      --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      /* 柔和暖色调主题 */
+      --primary: #e8b896;
+      --primary-light: #f5e6d8;
+      --primary-hover: #f0d4c0;
+      --bg: #fdf9f5;
+      --sidebar-bg: #fff;
+      --card-bg: #fff;
+      --border: #e8d5c4;
+      --border-light: #f0e6dc;
+      --text: #5a4a3a;
+      --text-secondary: #8a7a6a;
+      --shadow: 0 2px 8px rgba(90, 74, 58, 0.06);
+      --shadow-hover: 0 4px 16px rgba(90, 74, 58, 0.1);
+      --btn-secondary-bg: var(--primary-light);
+      --btn-secondary-hover: var(--primary-hover);
+      --btn-secondary-text: var(--primary);
+      --input-bg: #ffffff;
+      --input-disabled-bg: #f3f4f6;
+      --input-disabled-text: #9ca3af;
+      --input-disabled-border: #e5e7eb;
+    }
+
+    [data-theme="dark"] {
+      --primary: #8b6b52;
+      --primary-light: #2f2721;
+      --primary-hover: #3a2f27;
+      --bg: #141110;
+      --sidebar-bg: #1b1715;
+      --card-bg: #211c19;
+      --border: #3a302a;
+      --border-light: #2c2521;
+      --text: #f3e7dc;
+      --text-secondary: #d8cbc0;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      --shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.45);
+      --btn-secondary-bg: var(--primary);
+      --btn-secondary-hover: var(--primary-hover);
+      --btn-secondary-text: #ffffff;
+      --input-bg: #1a1512;
+      --input-disabled-bg: #28211d;
+      --input-disabled-text: #8f7f72;
+      --input-disabled-border: #3a302a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* 移动端侧边栏遮罩 */
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 40;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s var(--ease-smooth);
+    }
+
+    .sidebar-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* 侧边栏过渡动画 */
+    .sidebar {
+      transition: transform 0.3s var(--ease-smooth), width 0.3s var(--ease-smooth);
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .main-header {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+      }
+
+      .main-content {
+        padding: 1rem !important;
+      }
+    }
+
+    /* 组件样式 */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      transition: all 0.3s var(--ease-smooth);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #dcb08a;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--btn-secondary-hover);
+    }
+
+    .input {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .input:disabled {
+      background: var(--input-disabled-bg);
+      color: var(--input-disabled-text);
+      cursor: not-allowed;
+      border-color: var(--input-disabled-border);
+      box-shadow: none;
+    }
+
+    .input::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.8;
+    }
+
+    /* 侧边栏 */
+    .sidebar {
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+    }
+
+    .sidebar-link {
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-link:hover {
+      background: var(--primary-light);
+      color: var(--text);
+    }
+
+    .sidebar-link.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    [data-theme="dark"] .sidebar-link {
+      color: var(--text-secondary);
+    }
+
+    [data-theme="dark"] .sidebar-link:hover {
+      background: var(--primary-light);
+      color: var(--text);
+    }
+
+    [data-theme="dark"] .sidebar-link.active {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* 主内容区 */
+    .main-header {
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 列表项 */
+    .list-item {
+      display: flex;
+      align-items: center;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      transition: all 0.2s ease;
+    }
+
+    [data-theme="dark"] .bg-white {
+      background: var(--card-bg) !important;
+    }
+
+    [data-theme="dark"] .text-slate-500 {
+      color: var(--text-secondary) !important;
+    }
+
+    [data-theme="dark"] .text-slate-400 {
+      color: #a89283 !important;
+    }
+
+    [data-theme="dark"] .bg-gray-100 {
+      background: #2a2420 !important;
+      color: var(--text) !important;
+    }
+
+    [data-theme="dark"] .border-gray-300 {
+      border-color: var(--border) !important;
+    }
+
+    .list-item:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-hover);
+    }
+
+    /* 开关 */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked+.toggle-slider {
+      background: var(--primary);
+    }
+
+    input:checked+.toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* 动画 */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease both;
+    }
+
+    .status-pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 10px;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 14px;
+      pointer-events: auto;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .toast-success {
+      background: #10b981;
+    }
+
+    .toast-error {
+      background: #ef4444;
+    }
+
+    .toast-info {
+      background: var(--primary);
+    }
+
+    /* 卡片入场动画 */
+    @keyframes slideUpFade {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-up {
+      animation: slideUpFade 0.6s var(--ease-smooth) forwards;
+    }
+
+    .animate-slide-up-delay-1 {
+      animation: slideUpFade 0.6s var(--ease-smooth) 0.1s forwards;
+      opacity: 0;
+    }
+
+    .animate-slide-up-delay-2 {
+      animation: slideUpFade 0.6s var(--ease-smooth) 0.2s forwards;
+      opacity: 0;
+    }
+
+    .animate-slide-up-delay-3 {
+      animation: slideUpFade 0.6s var(--ease-smooth) 0.3s forwards;
+      opacity: 0;
+    }
+
+    /* 秘密面板动画 */
+    .secret-panel {
+      transform-origin: top center;
+    }
+
+    .secret-panel-enter {
+      opacity: 0;
+      transform: scale(0.9) translateY(-20px);
+    }
+
+    .secret-panel-enter-active {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      transition: all 0.5s var(--ease-bounce);
+    }
+
+    .secret-panel-leave {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    .secret-panel-leave-active {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+      transition: all 0.3s var(--ease-smooth);
+    }
+
+    /* 星星闪烁动画 */
+    @keyframes starPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+      }
+    }
+
+    .star-pulse {
+      animation: starPulse 2s ease-in-out infinite;
+    }
+  </style>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="h-screen flex overflow-hidden" x-data="app()">
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- 自定义确认对话框遮罩 -->
+  <div x-show="showConfirmDialog" x-cloak class="fixed inset-0 z-50 flex items-center justify-center"
+    style="background: rgba(0, 0, 0, 0.5);">
+    <div x-show="showConfirmDialog" x-cloak x-transition:enter="secret-panel-enter"
+      x-transition:enter-start="secret-panel-enter" x-transition:enter-end="secret-panel-enter-active"
+      x-transition:leave="secret-panel-leave" x-transition:leave-start="secret-panel-leave"
+      x-transition:leave-end="secret-panel-leave-active" class="card max-w-md w-full mx-4 secret-panel">
+      <div class="px-5 py-4 border-b border-[var(--border)]">
+        <h3 class="font-bold text-lg" style="color: var(--text)">✨ 确认一下</h3>
+      </div>
+      <div class="p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="text-4xl star-pulse">⭐</span>
+          <div class="flex-1">
+            <p class="text-base leading-relaxed" style="color: var(--text);" x-text="confirmDialogMessage">
+            </p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button @click="handleConfirmCancel" class="btn btn-secondary transition-all hover:scale-105">
+            还没去呢
+          </button>
+          <button @click="handleConfirmOk" class="btn btn-primary transition-all hover:scale-105">
+            已点星星！
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端侧边栏遮罩 -->
+  <div class="sidebar-overlay" :class="sidebarOpen ? 'active' : ''" @click="sidebarOpen = false"></div>
+
+  <!-- 侧边栏 -->
+  <aside class="sidebar w-64 flex flex-col flex-shrink-0" :class="sidebarOpen ? 'open' : ''">
+    <div
+      class="h-16 flex items-center px-6 border-b border-[var(--border)] cursor-pointer transition-all hover:bg-[var(--primary-light)] no-select"
+      :class="clickCount > 0 ? 'bg-[var(--primary-light)]' : ''" @click="handleTitleClick">
+      <div
+        class="w-10 h-10 rounded-xl flex items-center justify-center mr-3 text-xl bg-[var(--primary)] text-white transition-transform"
+        :style="clickCount > 0 ? `transform: scale(${1 + clickCount * 0.05})` : ''">
+        🦊
+      </div>
+      <span class="font-bold text-lg transition-all"
+        :style="clickCount > 0 ? `color: var(--primary); transform: scale(${1 + clickCount * 0.02})` : 'color: var(--text)'"
+        x-text="'更新检查器' + (clickCount > 0 ? ' ' + '!'.repeat(clickCount) : '')">
+      </span>
+    </div>
+
+    <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+      <template x-for="item in menu" :key="item.id">
+        <a href="#" @click.prevent="currentTab = item.id; sidebarOpen = false" class="sidebar-link"
+          :class="currentTab === item.id ? 'active' : ''">
+          <span x-html="item.icon" class="w-5 h-5"></span>
+          <span x-text="item.label"></span>
+        </a>
+      </template>
+    </nav>
+
+    <div class="p-4 border-t border-[var(--border)]">
+      <div class="btn btn-secondary w-full flex items-center justify-start px-4 py-2 rounded-lg">
+        <div class="w-2 h-2 rounded-full mr-2" :class="status.online ? 'bg-green-500 status-pulse' : 'bg-red-500'">
+        </div>
+        <span class="text-sm" x-text="status.text"></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="flex-1 flex flex-col min-w-0 bg-[var(--bg)]">
+    <header class="main-header h-16 sticky top-0 z-10 px-4 lg:px-8 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button @click="sidebarOpen = !sidebarOpen" class="toggle-sidebar-btn lg:hidden" title="打开菜单">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <h2 class="text-xl font-bold" style="color: var(--text)" x-text="menu.find(m => m.id === currentTab)?.label">
+        </h2>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- 颜色切换按钮 -->
+        <button @click="toggleTheme()" class="btn btn-secondary text-sm flex items-center gap-2" title="切换主题颜色">
+          <span x-text="theme === 'dark' ? '🌙' : '☀️'"></span>
+          <span class="hidden sm:inline" x-text="theme === 'dark' ? '深色' : '浅色'"></span>
+        </button>
+
+        <!-- 配色选择 -->
+        <div class="relative" @click.outside="colorPanelOpen = false">
+          <button @click="colorPanelOpen = !colorPanelOpen" class="btn btn-secondary text-sm flex items-center gap-2"
+            title="选择主题色">
+            <span>🎨</span>
+            <span class="hidden sm:inline">主题色</span>
+          </button>
+          <div x-show="colorPanelOpen" x-transition x-cloak
+            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl border border-[var(--border)] bg-[var(--card-bg)] shadow-lg z-50">
+            <div class="text-xs mb-2" style="color: var(--text-secondary)">内置配色</div>
+            <div class="grid grid-cols-4 gap-2 mb-3">
+              <template x-for="preset in themeColorPresets" :key="preset.value">
+                <button @click="selectPresetColor(preset.value)"
+                  class="w-10 h-10 rounded-lg border-2 transition-all hover:scale-105"
+                  :style="'background:' + preset.value + '; border-color:' + (selectedThemeColor === preset.value ? 'var(--text)' : 'transparent')"
+                  :title="preset.name"></button>
+              </template>
+            </div>
+            <div class="text-xs mb-2" style="color: var(--text-secondary)">自定义 HEX</div>
+            <div class="flex items-center gap-2">
+              <input type="text" x-model="customThemeColor" placeholder="#e8b896" class="input flex-1 min-w-0 text-sm">
+              <button @click="applyCustomColor()"
+                class="btn btn-primary text-xs w-14 h-9 px-0 whitespace-nowrap shrink-0">应用</button>
+            </div>
+          </div>
+        </div>
+        <!-- 导入插件按钮 -->
+        <button @click="showImportModal = true" class="btn btn-secondary text-sm flex items-center gap-2"
+          title="导入本地插件">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span class="hidden sm:inline">导入插件</span>
+        </button>
+        <!-- GitHub 链接 -->
+        <a href="https://github.com/xiowo/napcat-plugin-update-checker" target="_blank"
+          class="text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd"
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+              clip-rule="evenodd"></path>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-auto p-4 lg:p-8 relative">
+      <!-- 彩蛋二级隐藏界面 -->
+      <div x-show="showSecretPanel" x-cloak x-transition:enter="secret-panel-enter"
+        x-transition:enter-start="secret-panel-enter" x-transition:enter-end="secret-panel-enter-active"
+        x-transition:leave="secret-panel-leave" x-transition:leave-start="secret-panel-leave"
+        x-transition:leave-end="secret-panel-leave-active" class="max-w-3xl mx-auto secret-panel">
+        <div class="card">
+          <div class="px-5 py-4 border-b border-[var(--border)] flex justify-between items-center animate-slide-up">
+            <h3 class="font-bold" style="color: var(--text)">✨ 隐藏功能</h3>
+            <button @click="showSecretPanel = false" class="btn btn-secondary text-sm">关闭</button>
+          </div>
+          <div class="p-5 space-y-6">
+            <!-- 星星提示 -->
+            <div class="p-4 rounded-lg animate-slide-up-delay-1"
+              style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-3xl star-pulse">⭐</span>
+                <div>
+                  <div class="font-bold" style="color: #92400e;">喜欢这个插件吗？</div>
+                  <div class="text-sm" style="color: #b45309;">去 GitHub 给项目点个星星吧！</div>
+                </div>
+              </div>
+              <a href="https://github.com/xiowo/napcat-plugin-update-checker" target="_blank"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
+                style="background: #92400e; color: white;">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path fill-rule="evenodd"
+                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    clip-rule="evenodd"></path>
+                </svg>
+                前往 GitHub
+              </a>
+            </div>
+
+            <!-- 合并转发配置 -->
+            <div class="space-y-4 animate-slide-up-delay-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium" style="color: var(--text)">自定义合并转发信息</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">开启后可以自定义合并转发的 QQ 号和昵称
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" x-model="secretConfig.customForwardInfo">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div x-show="secretConfig.customForwardInfo" x-transition.opacity class="space-y-3 p-4 rounded-lg"
+                style="background: var(--primary-light);">
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text)">自定义 QQ 号</label>
+                  <input type="text" x-model="secretConfig.customForwardQQ" placeholder="留空则使用机器人自身 QQ 号"
+                    class="input w-full">
+                </div>
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text)">自定义昵称</label>
+                  <input type="text" x-model="secretConfig.customForwardName" placeholder="留空则使用机器人自身昵称"
+                    class="input w-full">
+                </div>
+              </div>
+            </div>
+
+            <!-- 保存按钮 -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-[var(--border)] animate-slide-up-delay-3">
+              <button @click="resetSecretConfig" class="btn btn-secondary transition-all hover:scale-105">重置</button>
+              <button @click="saveSecretConfig" class="btn btn-primary transition-all hover:scale-105">保存配置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 运行状态页面 -->
+      <div x-show="currentTab === 'dashboard' && !showSecretPanel" x-transition.opacity class="max-w-5xl mx-auto">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="card p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+              :class="config.enabled ? 'bg-green-50' : 'bg-gray-50'">
+              <span x-show="config.enabled">✅</span>
+              <span x-show="!config.enabled">❌</span>
+            </div>
+            <div>
+              <div class="text-xs" style="color: var(--text-secondary)">插件状态</div>
+              <div class="font-bold" :class="config.enabled ? 'text-green-600' : 'text-gray-500'"
+                x-text="config.enabled ? '已启用' : '已关闭'">
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-blue-50">⏰</div>
+            <div>
+              <div class="text-xs" style="color: var(--text-secondary)">运行时间</div>
+              <div class="font-bold font-mono" x-text="status.uptimeFormatted || '-'">
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-purple-50">
+              🔄</div>
+            <div>
+              <div class="text-xs" style="color: var(--text-secondary)">检查间隔</div>
+              <div class="font-bold text-[var(--primary)]">
+                <span x-text="config.checkInterval"></span> 分钟
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-green-50">
+              📦</div>
+            <div>
+              <div class="text-xs" style="color: var(--text-secondary)">插件数</div>
+              <div class="font-bold text-[var(--primary)]">
+                <span x-text="installedPlugins.length"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 运行状态详情 -->
+        <div class="card">
+          <div class="px-5 py-4 border-b border-[var(--border)] flex justify-between items-center">
+            <h3 class="font-bold" style="color: var(--text)">运行状态</h3>
+            <span class="text-xs px-2 py-1 rounded-full"
+              :class="status.online ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'"
+              x-text="status.online ? '运行中' : '已停止'">
+            </span>
+          </div>
+          <div class="p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">更新模式</span>
+              <span class="font-medium" style="color: var(--text)"
+                x-text="config.updateMode === 'auto' ? '自动更新' : '仅通知'">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">定时检查</span>
+              <span class="font-medium" style="color: var(--text)" x-text="config.enableSchedule ? '已启用' : '已禁用'">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">通知群数量</span>
+              <span class="font-medium" style="color: var(--text)" x-text="config.notifyGroups.length">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">通知用户数量</span>
+              <span class="font-medium" style="color: var(--text)" x-text="config.notifyUsers.length">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">自动更新插件数</span>
+              <span class="font-medium" style="color: var(--text)" x-text="config.autoUpdatePlugins.length">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">插件源数量</span>
+              <span class="font-medium" style="color: var(--text)" x-text="pluginSources.length">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">启用插件源数量</span>
+              <span class="font-medium" style="color: var(--text)"
+                x-text="pluginSources.filter(source => source.enabled).length">
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span style="color: var(--text-secondary)">黑名单插件数</span>
+              <span class="font-medium" style="color: var(--text)" x-text="config.ignoredPlugins.length">
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      <!-- 插件市场页面 -->
+      <div x-show="currentTab === 'pluginMarket' && !showSecretPanel" x-transition.opacity
+        class="max-w-5xl mx-auto space-y-6">
+        <!-- 商店源管理 -->
+        <div class="card">
+          <div class="px-5 py-4 flex justify-between items-center cursor-pointer"
+            :class="sourcesExpanded ? 'border-b border-[var(--border)]' : ''"
+            @click="sourcesExpanded = !sourcesExpanded">
+            <h3 class="font-bold" style="color: var(--text)">商店源管理</h3>
+            <div class="flex items-center gap-3">
+              <button @click.stop="showAddSourceModal = true" class="btn btn-secondary text-sm">
+                添加源
+              </button>
+              <svg class="w-4 h-4 transition-transform" :class="sourcesExpanded ? 'transform rotate-180' : ''"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <div x-show="sourcesExpanded" x-transition x-cloak class="p-5 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <template x-for="(source, index) in pluginSources" :key="index">
+                <div class="flex items-center justify-between p-4 border border-[var(--border)] rounded-lg">
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium" x-text="source.name"></div>
+                    <div class="text-xs text-slate-500 truncate" x-text="source.url"></div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button x-show="!source.isBuiltIn" @click="editSource(index)"
+                      class="text-slate-400 hover:text-[var(--primary)]">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="source.enabled"
+                        @change="toggleSource(index, $event.target.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <button x-show="!source.isBuiltIn" @click="removeSource(index)"
+                      class="text-slate-400 hover:text-red-500">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <div x-show="pluginSources.length === 0" x-cloak
+                class="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                <div
+                  class="w-16 h-16 rounded-full flex items-center justify-center text-2xl bg-[var(--primary-light)] mb-4">
+                  📦
+                </div>
+                <p class="text-sm" style="color: var(--text-secondary)">还没有添加任何插件商店源</p>
+                <p class="text-xs mt-2" style="color: var(--text-secondary)">点击右上角添加源按钮添加插件商店</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 插件搜索和筛选 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2">
+            <div class="card p-4 flex gap-3 relative" :class="searchModeDropdownOpen ? 'z-20' : ''">
+              <div class="relative flex-1">
+                <input type="text" x-model="marketSearchQuery" placeholder="搜索插件..." class="input w-full pl-10"
+                  style="height: 42px;">
+                <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="relative flex-shrink-0" :class="searchModeDropdownOpen ? 'z-20' : ''"
+                @click.outside="searchModeDropdownOpen = false">
+                <div class="input flex items-center justify-between cursor-pointer"
+                  style="height: 42px; min-width: 90px; padding: 0 12px;"
+                  @click="searchModeDropdownOpen = !searchModeDropdownOpen">
+                  <span class="text-sm mr-2 select-none" style="color: var(--text)"
+                    x-text="searchMode === 'author' ? '作者名' : '插件名'"></span>
+                  <svg class="w-4 h-4 transition-transform text-slate-400 flex-shrink-0"
+                    :class="searchModeDropdownOpen ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div x-show="searchModeDropdownOpen" x-transition x-cloak
+                  class="absolute left-0 right-0 top-full mt-2 p-1.5 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 select-none">
+                  <button @click="searchMode = 'name'; searchModeDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', searchMode === 'name' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    插件名
+                  </button>
+                  <button @click="searchMode = 'author'; searchModeDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', searchMode === 'author' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    作者名
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card p-4 relative" :class="sortDropdownOpen ? 'z-20' : ''"
+            @click.outside="sortDropdownOpen = false">
+            <div class="flex items-center justify-between cursor-pointer" @click="sortDropdownOpen = !sortDropdownOpen"
+              style="min-height: 44px;">
+              <h4 class="font-medium text-sm select-none" style="color: var(--text)">
+                排序方式:
+                <span x-text="sortBy === 'popular' ? '热门排序' : '名称排序'"></span>
+              </h4>
+              <svg class="w-4 h-4 transition-transform" :class="sortDropdownOpen ? 'transform rotate-180' : ''"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div x-show="sortDropdownOpen" x-transition x-cloak
+              class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+              <button @click="sortBy = 'popular'; sortDropdownOpen = false"
+                :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'popular' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                热门排序
+              </button>
+
+              <button @click="sortBy = 'name'; sortDropdownOpen = false"
+                :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'name' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                名称排序
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 标签分类 -->
+        <div class="card p-4 relative" :class="sourceDropdownOpen ? 'z-20' : ''">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-medium" style="color: var(--text)">标签分类</h4>
+            <div class="flex items-center gap-4">
+              <div class="relative" @click.outside="installStatusDropdownOpen = false">
+                <div class="flex items-center justify-between cursor-pointer"
+                  @click="installStatusDropdownOpen = !installStatusDropdownOpen">
+                  <h4 class="font-medium text-sm select-none flex items-center gap-1" style="color: var(--text)">
+                    筛选:
+                    <span class="text-[var(--primary)]"
+                      x-text="selectedInstallStatus === 'all' ? '全部' : selectedInstallStatus === 'installed' ? '已安装' : '未安装'"></span>
+                    <svg class="w-4 h-4 transition-transform ml-1"
+                      :class="installStatusDropdownOpen ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </h4>
+                </div>
+                <div x-show="installStatusDropdownOpen" x-transition x-cloak
+                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 min-w-[120px]">
+                  <button @click="selectedInstallStatus = 'all'; installStatusDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', selectedInstallStatus === 'all' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    全部
+                  </button>
+                  <button @click="selectedInstallStatus = 'updatable'; installStatusDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', selectedInstallStatus === 'updatable' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    可更新
+                  </button>
+                  <button @click="selectedInstallStatus = 'installed'; installStatusDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', selectedInstallStatus === 'installed' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    已安装
+                  </button>
+                  <button @click="selectedInstallStatus = 'uninstalled'; installStatusDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', selectedInstallStatus === 'uninstalled' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    未安装
+                  </button>
+                </div>
+              </div>
+              <div class="relative" @click.outside="sourceDropdownOpen = false">
+                <div class="flex items-center justify-between cursor-pointer"
+                  @click="sourceDropdownOpen = !sourceDropdownOpen">
+                  <h4 class="font-medium text-sm select-none flex items-center gap-1" style="color: var(--text)">
+                    来源:
+                    <span class="text-[var(--primary)] truncate max-w-[120px]"
+                      x-text="selectedSource === 'all' ? '全部' : selectedSource"></span>
+                    <svg class="w-4 h-4 transition-transform ml-1"
+                      :class="sourceDropdownOpen ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </h4>
+                </div>
+                <div x-show="sourceDropdownOpen" x-transition x-cloak
+                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 min-w-[150px]">
+                  <button @click="selectedSource = 'all'; sourceDropdownOpen = false"
+                    :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm max-w-[200px] truncate', selectedSource === 'all' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                    全部
+                  </button>
+                  <template x-for="source in pluginSources" :key="source.name">
+                    <button @click="selectedSource = source.name; sourceDropdownOpen = false"
+                      :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm max-w-[200px] truncate', selectedSource === source.name ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']"
+                      x-text="source.name">
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button @click="selectedCategory = 'all'"
+              :class="['px-3 py-1 rounded-full text-xs', selectedCategory === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              全部
+            </button>
+            <template x-for="category in categories" :key="category">
+              <button @click="selectedCategory = category"
+                :class="['px-3 py-1 rounded-full text-xs', selectedCategory === category ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+                <span x-text="category"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- 插件列表 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="(plugin, index) in filteredMarketPlugins"
+            :key="(plugin.id || plugin.name) + '-' + plugin.source">
+            <div
+              class="card hover:shadow-md transition-shadow animate-fade-in flex flex-col h-full cursor-pointer hover:-translate-y-1"
+              :style="`animation-delay: ${index * 50}ms`"
+              @click="selectedPlugin = plugin; showPluginDetailModal = true; loadPluginReadme(plugin)">
+              <div class="p-4 flex flex-col flex-1">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      class="w-12 h-12 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                        @error="$event.target.style.display='none'">
+                      <span x-else x-text="getPluginIcon(plugin.name || plugin.id)"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
+                      <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
+                        x-show="plugin.description"></div>
+                      <div class="flex items-center gap-2 text-xs mt-1">
+                        <span class="text-slate-500" x-text="plugin.version || '1.0.0'"></span>
+                        <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-3">
+                  <template x-for="(tag, tagIndex) in plugin.tags" :key="tagIndex">
+                    <span class="px-2 py-1 rounded-full text-xs bg-[var(--border-light)] text-[var(--text-secondary)]"
+                      x-text="tag"></span>
+                  </template>
+                </div>
+                <div class="mt-auto flex items-center justify-between">
+                  <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <span x-text="formatNumber(getPluginDownloads(plugin))"></span>
+                    <span>下载</span>
+                  </div>
+                  <div class="flex items-center gap-3" @click.stop>
+                    <span
+                      class="text-xs px-2 py-1 rounded-full bg-[var(--border-light)] text-[var(--text-secondary)] truncate max-w-[100px]"
+                      x-text="plugin.source" title="插件来源"></span>
+                    <!-- 安装状态按钮：已安装/可更新/安装 -->
+                    <template x-if="getPluginInstallStatus(plugin) === 'updatable'">
+                      <button @click="installPlugin(plugin)" class="btn text-sm shrink-0"
+                        style="background: #dcfce7; color: #166534;"
+                        :disabled="!!installingPlugins[plugin.id || plugin.name]">
+                        <span x-show="!installingPlugins[plugin.id || plugin.name]">可更新~</span>
+                        <span x-show="installingPlugins[plugin.id || plugin.name]">更新中...</span>
+                      </button>
+                    </template>
+                    <template x-if="getPluginInstallStatus(plugin) === 'installed'">
+                      <button class="btn text-sm shrink-0" disabled
+                        style="background: var(--border-light); color: var(--text-secondary); cursor: default;">
+                        ✓ 已安装
+                      </button>
+                    </template>
+                    <template x-if="getPluginInstallStatus(plugin) === 'not-installed'">
+                      <button @click="installPlugin(plugin)" class="btn btn-primary text-sm shrink-0"
+                        :disabled="!!installingPlugins[plugin.id || plugin.name]">
+                        <span x-show="!installingPlugins[plugin.id || plugin.name]">安装</span>
+                        <span x-show="installingPlugins[plugin.id || plugin.name]">安装中...</span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <div x-show="filteredMarketPlugins.length === 0"
+            class="col-span-full flex flex-col items-center justify-center py-12 text-center">
+            <div
+              class="w-16 h-16 rounded-full flex items-center justify-center text-2xl bg-[var(--primary-light)] mb-4">
+              🔍
+            </div>
+            <p class="text-sm" style="color: var(--text-secondary)">没有找到插件</p>
+            <p class="text-xs mt-2" style="color: var(--text-secondary)">尝试调整搜索关键词或分类</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加/编辑商店源模态框 -->
+      <div x-show="showAddSourceModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 animate-fade-in">
+          <h3 class="font-bold text-lg mb-4" style="color: var(--text)"
+            x-text="editingSourceIndex === null ? '添加商店源' : '编辑商店源'"></h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary)">源名称</label>
+              <input type="text" x-model="newSource.name" placeholder="例如：社区插件库" class="input w-full"
+                :disabled="editingSourceIndex !== null" :title="editingSourceIndex !== null ? '已添加源名称不可修改' : ''">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary)">源地址</label>
+              <input type="text" x-model="newSource.url" placeholder="例如：https://plugins.example.com/index.json"
+                class="input w-full">
+            </div>
+            <div class="flex items-center justify-between pt-4">
+              <button @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '' }"
+                class="btn btn-secondary text-sm">
+                取消
+              </button>
+              <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
+                <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 导入插件模态框 -->
+      <div x-show="showImportModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 animate-fade-in">
+          <h3 class="font-bold text-lg mb-4" style="color: var(--text)">导入本地插件</h3>
+          <div class="space-y-4">
+            <!-- 拖拽 / 点击上传区域 -->
+            <div class="border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer"
+              :class="importDragOver ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]'"
+              @dragover.prevent="importDragOver = true" @dragleave="importDragOver = false"
+              @drop.prevent="handleImportDrop($event)" @click="$refs.importFileInput.click()">
+              <input type="file" accept=".zip" x-ref="importFileInput" class="hidden"
+                @change="handleImportFileSelect($event)">
+              <div class="flex flex-col items-center gap-3 pointer-events-none">
+                <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  :style="importDragOver ? 'color: var(--primary)' : 'color: var(--text-secondary)'">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <div>
+                  <p class="text-sm font-medium" style="color: var(--text)">拖拽 .zip 插件文件到此处</p>
+                  <p class="text-xs mt-1" style="color: var(--text-secondary)">或点击此区域选择文件</p>
+                </div>
+                <span class="text-xs px-3 py-1 rounded-full"
+                  style="background: var(--border-light); color: var(--text-secondary)">
+                  仅支持 .zip 格式
+                </span>
+              </div>
+            </div>
+            <!-- 底部按钮 -->
+            <div class="flex items-center justify-between pt-2">
+              <button @click="showImportModal = false; importDragOver = false"
+                class="btn btn-secondary text-sm">取消</button>
+              <button @click="$refs.importFileInput.click()" class="btn btn-primary text-sm" :disabled="importLoading">
+                <svg x-show="importLoading" class="animate-spin h-4 w-4 mr-1 inline" xmlns="http://www.w3.org/2000/svg"
+                  fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+                <span x-text="importLoading ? '导入中...' : '选择文件'"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安装安全提醒 -->
+      <div x-show="showInstallWarningModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-lg p-6 animate-fade-in">
+          <h3 class="font-bold text-lg mb-3" style="color: var(--text)">安装风险提醒</h3>
+          <p class="text-sm leading-6" style="color: var(--text-secondary)">
+            注意：社区插件索引库收录的所有插件均由第三方开发者提供，本仓库仅提供索引和基本的审核。我们无法确保插件的质量和安全，您在安装插件时建议自行对插件源码进行二次审核。
+          </p>
+          <div class="flex justify-end gap-3 mt-6">
+            <button @click="handleInstallWarningConfirm(false)" class="btn btn-secondary text-sm">我知道了</button>
+            <button @click="handleInstallWarningConfirm(true)" class="btn btn-primary text-sm">不再弹出</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 镜像选择模态框 -->
+      <div x-show="showMirrorSelectorModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 animate-fade-in">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">选择下载镜像</h3>
+            <button @click="pingInstallMirrors()" class="btn btn-secondary text-sm flex items-center gap-2"
+              :disabled="pingingInstallMirrors">
+              <svg x-show="pingingInstallMirrors" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              <span>测速</span>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <div class="text-sm mb-2" style="color: var(--text-secondary)">
+              选择一个下载镜像以安装插件。默认已经自动选择，您也可以自定义并测试速度。
+            </div>
+
+            <div class="max-h-64 overflow-y-auto space-y-2 pr-1">
+              <label
+                class="w-full text-left px-4 py-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all"
+                :class="installSelectedMirror === '' ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]'">
+                <div class="flex items-center gap-3">
+                  <input type="radio" value="" x-model="installSelectedMirror"
+                    class="w-4 h-4 text-[var(--primary)] focus:ring-[var(--primary)] border-[var(--border)]">
+                  <span>直连 (不使用加速源)</span>
+                </div>
+              </label>
+
+              <template x-for="mirror in downloadMirrors" :key="mirror">
+                <label
+                  class="w-full text-left px-4 py-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all"
+                  :class="installSelectedMirror === mirror ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]'">
+                  <div class="flex items-center gap-3 overflow-hidden">
+                    <input type="radio" :value="mirror" x-model="installSelectedMirror"
+                      class="w-4 h-4 text-[var(--primary)] focus:ring-[var(--primary)] border-[var(--border)] flex-shrink-0">
+                    <span class="truncate text-sm" x-text="mirror"></span>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <span x-show="installPingResults.find(r => r.url === mirror)" class="text-xs font-mono"
+                      :class="installPingResults.find(r => r.url === mirror)?.ok ? 'text-green-500' : 'text-red-500'"
+                      x-text="installPingResults.find(r => r.url === mirror)?.latency === -1 ? '超时' : installPingResults.find(r => r.url === mirror)?.latency + 'ms'"></span>
+                  </div>
+                </label>
+              </template>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-[var(--border)] mt-4">
+              <button @click="showMirrorSelectorModal = false; pendingInstallPlugin = null"
+                class="btn btn-secondary text-sm">取消</button>
+              <button @click="confirmInstallPlugin()" class="btn btn-primary text-sm flex items-center gap-2"
+                :disabled="!pendingInstallPlugin">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                下载安装
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 插件详情模态框 -->
+      <div x-show="showPluginDetailModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        @click.self="showPluginDetailModal = false; selectedPlugin = null; pluginReadme = ''">
+        <div class="bg-white rounded-xl w-full max-w-4xl max-h-[85vh] overflow-y-auto animate-fade-in" @click.stop>
+          <div class="p-6">
+            <!-- 头部 -->
+            <div class="flex items-center justify-between mb-6">
+              <div class="flex items-center gap-4">
+                <div
+                  class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl overflow-hidden flex-shrink-0 bg-[var(--border-light)]">
+                  <img x-if="selectedPlugin?.icon" :src="selectedPlugin?.icon" alt="Plugin icon"
+                    class="w-full h-full object-cover" @error="$event.target.style.display='none'">
+                  <span x-else x-text="getPluginIcon(selectedPlugin?.name || selectedPlugin?.id)"></span>
+                </div>
+                <div>
+                  <h3 class="font-bold text-xl" style="color: var(--text)">
+                    <span x-text="selectedPlugin?.displayName || selectedPlugin?.name"></span>
+                  </h3>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-[var(--primary)] text-white"
+                      x-text="'v' + (githubRepoInfo?.tag_name || selectedPlugin?.version || '1.0.0')"></span>
+                    <span class="text-xs text-slate-500" x-text="'by ' + (selectedPlugin?.author || 'Unknown')"></span>
+                    <a x-if="selectedPlugin?.homepage" :href="selectedPlugin.homepage" target="_blank" rel="noreferrer"
+                      class="text-xs text-[var(--primary)] hover:underline flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      主页
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <button @click="showPluginDetailModal = false; selectedPlugin = null; pluginReadme = ''"
+                class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[var(--border-light)] transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- 基本信息 -->
+            <div class="mb-6">
+              <h4 class="font-medium mb-2" style="color: var(--text)">描述</h4>
+              <p class="text-sm" style="color: var(--text-secondary)"
+                x-text="githubRepoInfo?.body?.split('\n')[0] || selectedPlugin?.description || '暂无描述'"></p>
+            </div>
+
+            <!-- 标签 -->
+            <div class="mb-6" x-show="selectedPlugin?.tags?.length > 0">
+              <h4 class="font-medium mb-2" style="color: var(--text)">标签</h4>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="(tag, index) in selectedPlugin?.tags" :key="index">
+                  <span class="px-2 py-1 rounded-full text-xs bg-[var(--border-light)] text-[var(--text-secondary)]"
+                    x-text="tag"></span>
+                </template>
+              </div>
+            </div>
+
+            <!-- 插件信息 (GitHub API 数据) -->
+            <div class="mb-6">
+              <h4 class="font-medium mb-3" style="color: var(--text)">插件信息</h4>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div class="flex flex-col p-3 rounded-lg bg-[var(--border-light)]">
+                  <span class="text-slate-500 text-xs mb-1">最新版本</span>
+                  <span class="font-medium text-[var(--primary)]"
+                    x-text="githubRepoInfo?.tag_name || ('v' + (selectedPlugin?.version || '1.0.0'))"></span>
+                </div>
+                <div class="flex flex-col p-3 rounded-lg bg-[var(--border-light)]">
+                  <span class="text-slate-500 text-xs mb-1">下载量</span>
+                  <span class="font-medium" x-text="formatNumber(getPluginDownloads(selectedPlugin))"></span>
+                </div>
+                <div class="flex flex-col p-3 rounded-lg bg-[var(--border-light)]">
+                  <span class="text-slate-500 text-xs mb-1">星标</span>
+                  <span class="font-medium"
+                    x-text="formatNumber(githubRepoInfo?.stargazers_count || selectedPlugin?.stars || 0)"></span>
+                </div>
+                <div class="flex flex-col p-3 rounded-lg bg-[var(--border-light)]">
+                  <span class="text-slate-500 text-xs mb-1">来源</span>
+                  <span class="font-medium truncate" x-text="selectedPlugin?.source || 'GitHub'"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 详细信息 -->
+            <div class="mb-6">
+              <h4 class="font-medium mb-3" style="color: var(--text)">详细信息</h4>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div class="flex flex-col">
+                  <span class="text-slate-500 text-xs">插件 ID</span>
+                  <span class="font-mono text-xs truncate"
+                    x-text="selectedPlugin?.id || selectedPlugin?.name || '-'"></span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-slate-500 text-xs">最低要求版本</span>
+                  <span class="font-medium"
+                    x-text="selectedPlugin?.minVersion ? 'v' + selectedPlugin.minVersion : '无限制'"></span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-slate-500 text-xs">开源协议</span>
+                  <span class="font-medium"
+                    x-text="githubRepoInfo?.license?.name || selectedPlugin?.license || '未知'"></span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-slate-500 text-xs">更新时间</span>
+                  <span class="font-medium text-xs" x-text="formatDate(githubRepoInfo?.published_at) || '-'"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- README 展示区域 -->
+            <div class="mb-6" x-show="readmeLoading || pluginReadme || readmeError">
+              <h4 class="font-medium mb-3" style="color: var(--text)">详情</h4>
+
+              <!-- 加载中 -->
+              <div x-show="readmeLoading" class="flex justify-center items-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
+              </div>
+
+              <!-- 加载失败 -->
+              <div x-show="readmeError && !readmeLoading" class="text-center py-8">
+                <p class="text-sm text-slate-500 mb-3">无法加载 README</p>
+                <a x-if="selectedPlugin?.homepage" :href="selectedPlugin.homepage" target="_blank" rel="noreferrer"
+                  class="btn btn-primary text-sm inline-flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  在 GitHub 查看
+                </a>
+              </div>
+
+              <!-- README 内容 -->
+              <div x-show="!readmeLoading && !readmeError && pluginReadme"
+                class="rounded-lg border border-[var(--border)] p-4 bg-[var(--border-light)] prose prose-sm max-w-none">
+                <div class="readme-content text-sm" style="color: var(--text)" x-html="renderMarkdown(pluginReadme)">
+                </div>
+              </div>
+            </div>
+
+            <!-- 安装操作 -->
+            <div class="border-t border-[var(--border)] pt-6">
+              <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm" style="color: var(--text-secondary)"
+                    x-text="getPluginInstallStatus(selectedPlugin) === 'installed' ? '✓ 已安装' : getPluginInstallStatus(selectedPlugin) === 'updatable' ? '🔄 可更新' : '○ 未安装'"></span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <!-- 下载插件文件按钮 -->
+                  <a x-if="selectedPlugin?.downloadUrl" :href="selectedPlugin.downloadUrl" target="_blank"
+                    rel="noreferrer" class="btn text-sm inline-flex items-center gap-2"
+                    style="background: var(--border-light); color: var(--text);">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    下载文件
+                  </a>
+                  <button @click="installPlugin(selectedPlugin)"
+                    :class="['btn text-sm', getPluginInstallStatus(selectedPlugin) === 'installed' ? 'btn-secondary' : 'btn-primary']"
+                    :disabled="getPluginInstallStatus(selectedPlugin) === 'installed' || !!installingPlugins[selectedPlugin?.id || selectedPlugin?.name]">
+                    <span x-show="!installingPlugins[selectedPlugin?.id || selectedPlugin?.name]">
+                      <span x-show="getPluginInstallStatus(selectedPlugin) === 'installed'">已安装</span>
+                      <span x-show="getPluginInstallStatus(selectedPlugin) === 'updatable'">更新</span>
+                      <span x-show="getPluginInstallStatus(selectedPlugin) === 'not-installed'">安装</span>
+                    </span>
+                    <span x-show="installingPlugins[selectedPlugin?.id || selectedPlugin?.name]">
+                      <span x-show="getPluginInstallStatus(selectedPlugin) === 'updatable'">更新中...</span>
+                      <span x-show="getPluginInstallStatus(selectedPlugin) !== 'updatable'">安装中...</span>
+                    </span>
+                  </button>
+                  <button @click="showPluginDetailModal = false; selectedPlugin = null; pluginReadme = ''"
+                    class="btn btn-secondary text-sm">关闭</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安装进度对话框 -->
+      <div x-show="installProgress.show" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 animate-fade-in">
+          <div class="text-center mb-4">
+            <h3 class="font-bold text-lg mb-2" style="color: var(--text)">安装插件</h3>
+            <p class="text-sm" style="color: var(--text-secondary)" x-text="installProgress.message"></p>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <!-- 速度 & 百分比 -->
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col gap-0.5">
+                <p class="text-xs text-[var(--primary)] font-bold" x-text="installProgress.speedStr"></p>
+                <p class="text-xs" style="color: var(--text-secondary)">
+                  剩余时间: <span
+                    x-text="installProgress.eta > 0 ? (installProgress.eta < 60 ? installProgress.eta + 's' : Math.floor(installProgress.eta / 60) + 'm ' + (installProgress.eta % 60) + 's') : '计算中...'"></span>
+                </p>
+              </div>
+              <span class="text-2xl font-black text-[var(--primary)] font-mono"
+                x-text="Math.round(installProgress.progress) + '%'"></span>
+            </div>
+
+            <!-- 进度条 -->
+            <div class="w-full bg-[var(--border-light)] rounded-full h-4 overflow-hidden border border-[var(--border)]">
+              <div class="bg-[var(--primary)] h-full rounded-full transition-all duration-500 ease-out"
+                :style="'width: ' + installProgress.progress + '%'"></div>
+            </div>
+
+            <!-- 详细数据 (大小) -->
+            <div class="flex items-center justify-between text-xs" style="color: var(--text-secondary)">
+              <span>已下载 <span x-text="installProgress.downloadedStr"></span></span>
+              <span>总计 <span x-text="installProgress.totalStr"></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 插件设置页面 -->
+      <div x-show="currentTab === 'pluginSettings' && !showSecretPanel" x-transition.opacity
+        class="max-w-5xl mx-auto space-y-6">
+        <!-- 基础设置卡片 -->
+        <div class="card p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">基础设置</h3>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium" style="color: var(--text)">启用插件</div>
+                <div class="text-xs" style="color: var(--text-secondary)">是否启用此插件的功能 (群内命令)</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" x-model="config.enabled" @change="saveConfig()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">命令前缀</label>
+              <input type="text" x-model="config.commandPrefix" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="触发命令的前缀，默认为 #更新" class="input flex-1">
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">冷却时间（秒）</label>
+              <input type="number" x-model.number="config.cooldownSeconds" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="同一命令请求冷却时间，0 表示不限制" class="input flex-1">
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <!-- 主人QQ输入框 -->
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">
+                主人QQ (填QQ号，逗号分隔)
+              </label>
+              <input type="text" x-model="config.masterQQ" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="例如：123456, 123456" class="input flex-1">
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <!-- 黑名单用户输入框 -->
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">
+                黑名单用户 (填QQ号，逗号分隔)
+              </label>
+              <input type="text" x-model="config.blacklistStr" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="例如：123456, 123456" class="input flex-1">
+            </div>
+          </div>
+        </div>
+
+        <!-- 更新设置卡片 -->
+        <div class="card p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">更新设置</h3>
+          </div>
+          <div class="space-y-4">
+            <div class="card p-4 relative" :class="updateModeDropdownOpen ? 'z-20' : 'z-10'"
+              @click.outside="updateModeDropdownOpen = false">
+              <div class="flex items-center justify-between cursor-pointer"
+                @click="updateModeDropdownOpen = !updateModeDropdownOpen" style="min-height: 44px;">
+                <div>
+                  <div class="font-medium text-sm select-none" style="color: var(--text)">更新模式</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">
+                    <span x-text="config.updateMode === 'notify' ? '仅通知' : '自动更新'"></span>
+                  </div>
+                </div>
+                <svg class="w-4 h-4 transition-transform" :class="updateModeDropdownOpen ? 'transform rotate-180' : ''"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <div x-show="updateModeDropdownOpen" x-transition x-cloak
+                class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+                <button @click="config.updateMode = 'notify'; updateModeDropdownOpen = false; markNonSwitchChanged()"
+                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'notify' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                  仅通知
+                </button>
+                <button @click="config.updateMode = 'auto'; updateModeDropdownOpen = false; markNonSwitchChanged()"
+                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'auto' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                  自动更新
+                </button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium" style="color: var(--text)">启用定时检查</div>
+                <div class="text-xs" style="color: var(--text-secondary)">是否启用定时检查插件更新</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" x-model="config.enableSchedule" @change="saveConfig()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">检查间隔（分钟）</label>
+              <input type="number" x-model.number="config.checkInterval" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="定时检查更新的间隔时间，最小为 1 分钟" class="input flex-1" min="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- 通知设置卡片 -->
+        <div class="card p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">通知设置</h3>
+          </div>
+          <div class="space-y-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，逗号分隔)</label>
+              <input type="text" x-model="config.notifyGroupsStr" @input="markNonSwitchChanged()"
+                placeholder="例如：12345678, 12345678" class="input flex-1">
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">通知用户 (填QQ号，逗号分隔)</label>
+              <input type="text" x-model="config.notifyUsersStr" @input="markNonSwitchChanged()"
+                placeholder="例如：123456, 123456" class="input flex-1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw 配置卡片 -->
+        <div class="card p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">商店源配置 (Raw加速源)</h3>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <span class="text-sm select-none" style="color: var(--text-secondary)">
+                  不使用加速源</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" :checked="config.selectedRawMirror === 'https://raw.githubusercontent.com'"
+                    @change="config.selectedRawMirror = $event.target.checked ? 'https://raw.githubusercontent.com' : ''; saveConfig()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <button @click="pingMirrors('raw')" class="btn btn-secondary text-sm flex items-center gap-2"
+                :disabled="pingingMirrors">
+                <svg x-show="pingingMirrors" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                  viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+                <span>快捷测速</span>
+              </button>
+            </div>
+          </div>
+          <div class="flex gap-2 mb-4">
+            <input type="text" x-model="newRawMirror" placeholder="输入新的 Raw 加速源URL..." class="input flex-1">
+            <button @click="addMirror('raw')" class="btn btn-primary whitespace-nowrap">新增</button>
+          </div>
+          <div class="space-y-2 max-h-[300px] overflow-auto pr-2">
+            <template x-for="(mirror, index) in mirrors.raw" :key="index">
+              <div
+                class="flex justify-between items-center bg-[var(--bg)] p-3 rounded-lg border border-[var(--border-light)] hover:border-[var(--primary)] transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden flex-1">
+                  <div class="w-2 h-2 rounded-full"
+                    :class="pingResults.raw.find(r => r.url === mirror)?.ok ? 'bg-green-500' : (pingResults.raw.find(r => r.url === mirror) ? 'bg-red-500' : 'bg-gray-300')">
+                  </div>
+                  <span class="text-sm truncate" style="color: var(--text)" x-text="mirror || '直连'"></span>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                  <span x-show="pingResults.raw.find(r => r.url === mirror)" class="text-xs font-mono"
+                    :class="pingResults.raw.find(r => r.url === mirror)?.ok ? 'text-green-500' : 'text-red-500'"
+                    x-text="pingResults.raw.find(r => r.url === mirror)?.latency === -1 ? '失败' : pingResults.raw.find(r => r.url === mirror)?.latency + 'ms'"></span>
+                  <button @click="removeMirror('raw', index)" class="text-slate-400 hover:text-red-500 ml-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+            <div x-show="mirrors.raw.length === 0" class="text-center py-4 text-slate-400 text-sm">暂无加速源</div>
+          </div>
+        </div>
+
+        <!-- Download 配置卡片 -->
+        <div class="card p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">下载加速源配置</h3>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <span class="text-sm select-none" style="color: var(--text-secondary)">
+                  不使用加速源</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" :checked="config.selectedDownloadMirror === 'direct'"
+                    @change="config.selectedDownloadMirror = $event.target.checked ? 'direct' : ''; saveConfig()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <button @click="pingMirrors('download')" class="btn btn-secondary text-sm flex items-center gap-2"
+                :disabled="pingingMirrors">
+                <svg x-show="pingingMirrors" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                  viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+                <span>快捷测速</span>
+              </button>
+            </div>
+          </div>
+          <div class="flex gap-2 mb-4">
+            <input type="text" x-model="newDownloadMirror" placeholder="输入新的下载加速源URL..." class="input flex-1">
+            <button @click="addMirror('download')" class="btn btn-primary whitespace-nowrap">新增</button>
+          </div>
+          <div class="space-y-2 max-h-[300px] overflow-auto pr-2">
+            <template x-for="(mirror, index) in mirrors.download" :key="index">
+              <div
+                class="flex justify-between items-center bg-[var(--bg)] p-3 rounded-lg border border-[var(--border-light)] hover:border-[var(--primary)] transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden flex-1">
+                  <div class="w-2 h-2 rounded-full"
+                    :class="pingResults.download.find(r => r.url === mirror)?.ok ? 'bg-green-500' : (pingResults.download.find(r => r.url === mirror) ? 'bg-red-500' : 'bg-gray-300')">
+                  </div>
+                  <span class="text-sm truncate" style="color: var(--text)" x-text="mirror || '直连'"></span>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                  <span x-show="pingResults.download.find(r => r.url === mirror)" class="text-xs font-mono"
+                    :class="pingResults.download.find(r => r.url === mirror)?.ok ? 'text-green-500' : 'text-red-500'"
+                    x-text="pingResults.download.find(r => r.url === mirror)?.latency === -1 ? '失败' : pingResults.download.find(r => r.url === mirror)?.latency + 'ms'"></span>
+                  <button @click="removeMirror('download', index)" class="text-slate-400 hover:text-red-500 ml-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+            <div x-show="mirrors.download.length === 0" class="text-center py-4 text-slate-400 text-sm">暂无加速源</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自动更新插件列表页面 -->
+      <div x-show="currentTab === 'autoUpdatePlugins' && !showSecretPanel" x-transition.opacity
+        class="max-w-5xl mx-auto space-y-4">
+        <!-- 操作栏 -->
+        <div class="card p-4 flex justify-between items-center animate-fade-in">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">
+              📦</div>
+            <div>
+              <h3 class="font-bold" style="color: var(--text)">自动更新插件</h3>
+              <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
+                  x-text="config.autoUpdatePlugins.length"></span> 个自动更新插件</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="clearAutoUpdatePlugins" class="btn text-sm" style="background: #fee2e2; color: #991b1b;">
+              清空
+            </button>
+          </div>
+        </div>
+
+        <!-- 插件列表 - 卡片式布局 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="(pluginName, index) in config.autoUpdatePlugins" :key="pluginName">
+            <div class="card hover:shadow-md transition-shadow animate-fade-in"
+              :style="`animation-delay: ${index * 50}ms`">
+              <div class="p-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-blue-50 flex-shrink-0">
+                      <template x-if="getPluginIconUrl(pluginName)">
+                        <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
+                      </template>
+                      <span x-else>🔌</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
+                      <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
+                        x-show="getPluginDescription(pluginName)"></div>
+                      <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
+                        <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
+                          x-show="getPluginAuthor(pluginName)"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click="removeAutoUpdatePlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
+                    删除
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="card p-4 mt-4">
+          <div class="relative">
+            <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
+            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="flex items-center gap-3 mt-4 mb-4">
+          <button @click="autoUpdateFilter = 'all'"
+            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            全部
+          </button>
+          <button @click="autoUpdateFilter = 'enabled'"
+            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            已启用
+          </button>
+          <button @click="autoUpdateFilter = 'disabled'"
+            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            未启用
+          </button>
+        </div>
+
+        <!-- 已安装插件列表 - 卡片式布局 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template
+            x-for="plugin in (currentTab === 'autoUpdatePlugins' ? filteredAutoUpdatePlugins : filteredIgnoredPlugins)"
+            :key="plugin.name">
+            <div class="card hover:shadow-md transition-shadow">
+              <div class="p-4 flex flex-col">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                        @error="$event.target.style.display='none'">
+                      <span x-else x-text="getPluginIcon(plugin.name)"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
+                      <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
+                        x-show="plugin.description"></div>
+                      <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500" x-text="plugin.currentVersion"></span>
+                        <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'autoUpdatePlugins'">
+                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">自动更新</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="config.autoUpdatePlugins.includes(plugin.name)"
+                        @change="toggleAutoUpdatePlugin(plugin.name, $event.target.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'ignoredPlugins'">
+                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">黑名单</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="config.ignoredPlugins.includes(plugin.name)"
+                        @change="toggleIgnoredPlugin(plugin.name, $event.target.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 黑名单插件管理页面 -->
+      <div x-show="currentTab === 'ignoredPlugins' && !showSecretPanel" x-transition.opacity
+        class="max-w-5xl mx-auto space-y-4">
+        <!-- 操作栏 -->
+        <div class="card p-4 flex justify-between items-center animate-fade-in">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">
+              🚫</div>
+            <div>
+              <h3 class="font-bold" style="color: var(--text)">黑名单插件</h3>
+              <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
+                  x-text="config.ignoredPlugins.length"></span> 个黑名单插件</p>
+              <p class="text-xs" style="color: var(--text-secondary)">黑名单插件即使在自动更新中勾选也不会更新</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="clearIgnoredPlugins" class="btn text-sm" style="background: #fee2e2; color: #991b1b;">
+              清空
+            </button>
+          </div>
+        </div>
+
+        <!-- 插件列表 - 卡片式布局 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="(pluginName, index) in config.ignoredPlugins" :key="pluginName">
+            <div class="card hover:shadow-md transition-shadow animate-fade-in"
+              :style="`animation-delay: ${index * 50}ms`">
+              <div class="p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-red-50 flex-shrink-0">
+                      <template x-if="getPluginIconUrl(pluginName)">
+                        <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
+                      </template>
+                      <span x-else>🚫</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
+                      <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
+                        x-show="getPluginDescription(pluginName)"></div>
+                      <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
+                        <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
+                          x-show="getPluginAuthor(pluginName)"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click="removeIgnoredPlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
+                    删除
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="card p-4 mt-4">
+          <div class="relative">
+            <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
+            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="flex items-center gap-3 mt-4 mb-4">
+          <button @click="ignoredFilter = 'all'"
+            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            全部
+          </button>
+          <button @click="ignoredFilter = 'enabled'"
+            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            已启用
+          </button>
+          <button @click="ignoredFilter = 'disabled'"
+            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+            未启用
+          </button>
+        </div>
+
+        <!-- 已安装插件列表 - 卡片式布局 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template
+            x-for="plugin in (currentTab === 'autoUpdatePlugins' ? filteredAutoUpdatePlugins : filteredIgnoredPlugins)"
+            :key="plugin.name">
+            <div class="card hover:shadow-md transition-shadow">
+              <div class="p-4 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                        @error="$event.target.style.display='none'">
+                      <span x-else x-text="getPluginIcon(plugin.name)"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
+                      <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
+                        x-show="plugin.description"></div>
+                      <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500" x-text="plugin.currentVersion"></span>
+                        <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'autoUpdatePlugins'">
+                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">自动更新</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="config.autoUpdatePlugins.includes(plugin.name)"
+                        @change="toggleAutoUpdatePlugin(plugin.name, $event.target.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'ignoredPlugins'">
+                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">黑名单</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" :checked="config.ignoredPlugins.includes(plugin.name)"
+                        @change="toggleIgnoredPlugin(plugin.name, $event.target.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右下角保存按钮 -->
+    <div x-show="hasUnsavedChanges" x-transition class="fixed bottom-6 right-6 z-50" x-cloak>
+      <button @click="saveConfig()" class="btn btn-primary flex items-center gap-2 px-6 py-3 shadow-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        保存配置
+      </button>
+    </div>
+  </main>
+
+  <script>
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 400);
+      }, 3000);
+    }
+
+    function resolvePluginName() {
+      if (window.__PLUGIN_NAME__) return window.__PLUGIN_NAME__;
+      try {
+        if (window.parent && window.parent.__PLUGIN_NAME__) return window.parent.__PLUGIN_NAME__;
+      } catch (e) { }
+      const pluginMatch = location.pathname.match(/\/plugin\/([^\/]+)/);
+      if (pluginMatch) return pluginMatch[1];
+      const extMatch = location.pathname.match(/\/ext\/([^\/]+)/);
+      if (extMatch) return extMatch[1];
+      return 'napcat-plugin-update-checker';
+    }
+
+    const PLUGIN_NAME = resolvePluginName();
+    const API_BASE = `/api/Plugin/ext/${PLUGIN_NAME}`;
+
+    function createDefaultConfig() {
+      return {
+        enabled: true,
+        commandPrefix: '#更新',
+        cooldownSeconds: 60,
+        masterQQ: '',
+        blacklist: [],
+        blacklistStr: '',
+        groupConfigs: {},
+        updateMode: 'notify',
+        enableSchedule: true,
+        checkInterval: 30,
+        notifyGroups: [],
+        notifyUsers: [],
+        autoUpdatePlugins: [],
+        ignoredPlugins: [],
+        selectedRawMirror: '',
+        selectedDownloadMirror: '',
+        pluginSources: []
+      };
+    }
+
+    function getToken() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('webui_token') || localStorage.getItem('token') || '';
+    }
+
+    function authHeaders(h = {}) {
+      const token = getToken();
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
+
+    function app() {
+      return {
+        sidebarOpen: false,
+        currentTab: 'dashboard',
+        theme: 'light',
+        selectedThemeColor: '#e8b896',
+        customThemeColor: '',
+        colorPanelOpen: false,
+        themeColorPresets: [
+          { name: '奶茶', value: '#e8b896' },
+          { name: '天空', value: '#60a5fa' },
+          { name: '薄荷', value: '#34d399' },
+          { name: '薰衣草', value: '#a78bfa' },
+          { name: '玫瑰', value: '#fb7185' },
+          { name: '日落', value: '#fb923c' },
+          { name: '柠檬', value: '#facc15' },
+          { name: '青玉', value: '#14b8a6' }
+        ],
+        menu: [
+          { id: 'dashboard', label: '运行状态', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>' },
+          { id: 'pluginMarket', label: '插件市场', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>' },
+          { id: 'pluginSettings', label: '插件设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>' },
+          { id: 'autoUpdatePlugins', label: '自动更新插件', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>' },
+          { id: 'ignoredPlugins', label: '黑名单插件管理', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.633-1.964-.633-2.732 0L3.732 16c-.77.633.192 3 1.732 3z" /></svg>' },
+        ],
+
+        status: { text: '连接中...', online: false, uptimeFormatted: '-' },
+        config: createDefaultConfig(),
+        installedPlugins: [],
+        pluginInfoMap: {}, // 插件信息映射，key: pluginName, value: pluginInfo
+        uptimeTimer: null,
+        showSecretPanel: false,
+        clickCount: 0,
+        clickTimer: null,
+        secretConfig: {
+          customForwardInfo: false,
+          customForwardQQ: '',
+          customForwardName: '',
+        },
+        showConfirmDialog: false,
+        confirmDialogMessage: '',
+        confirmCallback: null,
+        // 更新模式下拉菜单状态
+        updateModeDropdownOpen: false,
+        // 保存相关
+        hasUnsavedChanges: false,
+        originalConfig: null,
+
+        // 表单数据
+        newPluginName: '',
+        newIgnoredPluginName: '',
+
+        // 搜索功能
+        searchQuery: '',
+
+        // 筛选器状态
+        autoUpdateFilter: 'all',
+        ignoredFilter: 'all',
+
+        // 插件市场相关
+        pluginSources: [],
+        showAddSourceModal: false,
+        newSource: { name: '', url: '' },
+        marketSearchQuery: '',
+        searchMode: 'name',
+        searchModeDropdownOpen: false,
+        selectedCategory: 'all',
+        selectedInstallStatus: 'all',
+        installStatusDropdownOpen: false,
+        selectedSource: 'all',
+        sourceDropdownOpen: false,
+        sortBy: 'popular',
+        marketPlugins: [],
+        categories: ['工具', '娱乐', '实用', '开发', '社交', '系统'],
+        isLoadingPlugins: false,
+        sourcesExpanded: false,
+        sortDropdownOpen: false,
+        editingSourceIndex: null,
+        installingPlugins: {}, // 记录正在安装的插件状态
+
+        // 插件详情相关
+        showPluginDetailModal: false,
+        selectedPlugin: null,
+
+        // README 相关
+        pluginReadme: '',
+        readmeLoading: false,
+        readmeError: false,
+
+        // GitHub API 相关
+        githubRepoInfo: null,
+        githubRepoLoading: false,
+        githubRepoError: false,
+        githubReleases: [],
+        githubReleasesLoading: false,
+
+        // GitHub API 缓存 (1小时)
+        githubCache: {},
+        GITHUB_CACHE_DURATION: 60 * 60 * 1000, // 1小时
+
+        // 安装进度相关
+        installProgress: {
+          show: false,
+          message: '',
+          progress: 0,
+          speedStr: '',
+          eta: 0,
+          downloadedStr: '0.0MB',
+          totalStr: '0.0MB'
+        },
+
+        // 镜像选择相关
+        showMirrorSelectorModal: false,
+        pendingInstallPlugin: null,
+        downloadMirrors: [],
+        selectedDownloadMirror: null,
+        installSelectedMirror: '',
+        pingingInstallMirrors: false,
+        installPingResults: [],
+
+        // 安装警告弹窗相关
+        showInstallWarningModal: false,
+        pendingInstallWarningPlugin: null,
+        installWarningShownInSession: false,
+        INSTALL_WARNING_DISMISS_KEY: 'napcat_plugin_install_warning_dismissed',
+
+        // 导入插件相关
+        showImportModal: false,
+        importDragOver: false,
+        importLoading: false,
+
+        // 镜像配置
+        mirrors: { raw: [], download: [] },
+        newRawMirror: '',
+        newDownloadMirror: '',
+        pingingMirrors: false,
+        pingResults: { raw: [], download: [] },
+
+        // 计算属性
+        get filteredAutoUpdatePlugins() {
+          let plugins = this.filterInstalledPluginsBySearch(this.installedPlugins);
+
+          if (this.autoUpdateFilter === 'enabled') {
+            plugins = plugins.filter(plugin => this.config.autoUpdatePlugins.includes(plugin.name));
+          } else if (this.autoUpdateFilter === 'disabled') {
+            plugins = plugins.filter(plugin => !this.config.autoUpdatePlugins.includes(plugin.name));
+          }
+
+          return plugins;
+        },
+
+        get filteredIgnoredPlugins() {
+          let plugins = this.filterInstalledPluginsBySearch(this.installedPlugins);
+
+          if (this.ignoredFilter === 'enabled') {
+            plugins = plugins.filter(plugin => this.config.ignoredPlugins.includes(plugin.name));
+          } else if (this.ignoredFilter === 'disabled') {
+            plugins = plugins.filter(plugin => !this.config.ignoredPlugins.includes(plugin.name));
+          }
+
+          return plugins;
+        },
+
+        filterInstalledPluginsBySearch(plugins) {
+          if (!this.searchQuery) return plugins;
+          const query = this.searchQuery.toLowerCase();
+          return plugins.filter(plugin =>
+            plugin.name.toLowerCase().includes(query) ||
+            (plugin.displayName && plugin.displayName.toLowerCase().includes(query))
+          );
+        },
+
+        compareVersions(leftVersion, rightVersion) {
+          const normalize = (v) => (v || '0.0.0').replace(/^v/i, '');
+          const leftParts = normalize(leftVersion).split('.').map(Number);
+          const rightParts = normalize(rightVersion).split('.').map(Number);
+
+          for (let i = 0; i !== Math.max(leftParts.length, rightParts.length); i++) {
+            const left = leftParts[i] || 0;
+            const right = rightParts[i] || 0;
+            if (left === right) continue;
+            return left > right ? 1 : -1;
+          }
+          return 0;
+        },
+
+        // 插件市场计算属性
+        get filteredMarketPlugins() {
+          let plugins = [...this.marketPlugins];
+
+          // 应用搜索
+          if (this.marketSearchQuery) {
+            const query = this.marketSearchQuery.toLowerCase();
+            plugins = plugins.filter(plugin => {
+              if (this.searchMode === 'author') {
+                return plugin.author && plugin.author.toLowerCase().includes(query);
+              } else {
+                return (plugin.name && plugin.name.toLowerCase().includes(query)) ||
+                  (plugin.displayName && plugin.displayName.toLowerCase().includes(query)) ||
+                  (plugin.description && plugin.description.toLowerCase().includes(query)) ||
+                  (plugin.tags && plugin.tags.some(tag => tag.toLowerCase().includes(query)));
+              }
+            });
+          }
+
+          // 应用分类筛选
+          if (this.selectedCategory !== 'all') {
+            plugins = plugins.filter(plugin =>
+              plugin.tags && plugin.tags.includes(this.selectedCategory)
+            );
+          }
+
+          // 应用来源筛选
+          if (this.selectedSource !== 'all') {
+            plugins = plugins.filter(plugin => plugin.source === this.selectedSource);
+          }
+
+          // 应用安装状态筛选（优先通过 storeId 匹配，fallback 到 name/internalId/fileId）
+          if (this.selectedInstallStatus !== 'all') {
+            plugins = plugins.filter(plugin => {
+              const pluginId = plugin.id || plugin.name;
+              const installedPlugin = this.installedPlugins.find(p =>
+                p.storeId === pluginId || p.name === pluginId || p.internalId === pluginId || p.fileId === pluginId
+              );
+              const isInstalled = !!installedPlugin;
+
+              if (this.selectedInstallStatus === 'updatable') {
+                if (!isInstalled) return false;
+                const storeVersion = plugin.version || '0.0.0';
+                const localVersion = installedPlugin.currentVersion || '0.0.0';
+                return this.isNewerVersion(storeVersion, localVersion);
+              }
+
+              return this.selectedInstallStatus === 'installed' ? isInstalled : !isInstalled;
+            });
+          }
+
+          // 应用排序
+          switch (this.sortBy) {
+            case 'popular':
+              plugins.sort((a, b) => {
+                const downloadsA = this.getPluginDownloads(a);
+                const downloadsB = this.getPluginDownloads(b);
+                return downloadsB - downloadsA;
+              });
+              break;
+
+            case 'name':
+              plugins.sort((a, b) => {
+                const nameA = (a.displayName || a.name || '').toLowerCase();
+                const nameB = (b.displayName || b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+              });
+              break;
+          }
+
+          return plugins;
+        },
+
+        // 获取插件下载量（优先使用仓库提供的 downloadCount）
+        getPluginDownloads(plugin) {
+          if (!plugin) return 0;
+          if (plugin.downloadCount !== undefined) {
+            return plugin.downloadCount;
+          }
+          return plugin.downloads || 0;
+        },
+
+        // 插件图标生成
+        getPluginIcon(pluginName) {
+          const icons = ['🔌', '📦', '🚀', '⚡', '🔄', '📡', '🎯', '🛠️', '🧩', '🎨'];
+          const hash = pluginName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          return icons[hash % icons.length];
+        },
+
+        // 插件颜色生成
+        getPluginColor(pluginName) {
+          const colors = ['#e0f2fe', '#dbeafe', '#f0fdf4', '#fefce8', '#fef2f2', '#fdf2f8', '#fae8ff', '#f0f9ff'];
+          const hash = pluginName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          return colors[hash % colors.length];
+        },
+
+        // 格式化数字
+        formatNumber(num) {
+          if (num === null || num === undefined) return '0';
+          if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+          if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+          return num.toString();
+        },
+
+        // 格式化日期
+        formatDate(dateStr) {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        },
+
+        // 格式化文件大小
+        formatSize(bytes) {
+          if (!bytes) return '0 B';
+          const units = ['B', 'KB', 'MB', 'GB'];
+          let i = 0;
+          while (bytes >= 1024 && i < units.length - 1) {
+            bytes /= 1024;
+            i++;
+          }
+          return bytes.toFixed(1) + ' ' + units[i];
+        },
+
+        initTheme() {
+          try {
+            const savedTheme = localStorage.getItem('dashboard_theme');
+            const initialTheme = savedTheme === 'dark' ? 'dark' : 'light';
+            const savedColor = localStorage.getItem('dashboard_primary_color') || '#e8b896';
+            this.applyTheme(initialTheme);
+            this.applyPrimaryColor(savedColor, false);
+          } catch (e) {
+            this.applyTheme('light');
+            this.applyPrimaryColor('#e8b896', false);
+          }
+        },
+
+        normalizeHexColor(color) {
+          if (!color) return null;
+          const c = color.trim();
+          const shortHex = /^#([0-9a-fA-F]{3})$/;
+          const fullHex = /^#([0-9a-fA-F]{6})$/;
+          if (fullHex.test(c)) return c.toLowerCase();
+          if (shortHex.test(c)) {
+            const raw = c.slice(1);
+            return ('#' + raw[0] + raw[0] + raw[1] + raw[1] + raw[2] + raw[2]).toLowerCase();
+          }
+          return null;
+        },
+
+        hexToRgb(hex) {
+          const normalized = this.normalizeHexColor(hex);
+          if (!normalized) return null;
+          const value = normalized.slice(1);
+          return {
+            r: parseInt(value.slice(0, 2), 16),
+            g: parseInt(value.slice(2, 4), 16),
+            b: parseInt(value.slice(4, 6), 16)
+          };
+        },
+
+        rgbToHex(r, g, b) {
+          const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+          return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        },
+
+        mixColor(hex, targetHex, ratio) {
+          const c1 = this.hexToRgb(hex);
+          const c2 = this.hexToRgb(targetHex);
+          if (!c1 || !c2) return hex;
+          return this.rgbToHex(
+            c1.r + (c2.r - c1.r) * ratio,
+            c1.g + (c2.g - c1.g) * ratio,
+            c1.b + (c2.b - c1.b) * ratio
+          );
+        },
+
+        applyPrimaryColor(color, persist = true) {
+          const normalized = this.normalizeHexColor(color);
+          if (!normalized) return false;
+
+          const light = this.mixColor(normalized, '#ffffff', 0.72);
+          const hover = this.mixColor(normalized, '#000000', 0.08);
+
+          this.selectedThemeColor = normalized;
+          this.customThemeColor = normalized;
+
+          document.documentElement.style.setProperty('--primary', normalized);
+          document.documentElement.style.setProperty('--primary-light', light);
+          document.documentElement.style.setProperty('--primary-hover', hover);
+
+          if (persist) {
+            try {
+              localStorage.setItem('dashboard_primary_color', normalized);
+            } catch (e) { }
+          }
+          return true;
+        },
+
+        selectPresetColor(color) {
+          this.applyPrimaryColor(color, true);
+          showToast('已应用内置主题色', 'success');
+        },
+
+        applyCustomColor() {
+          if (!this.applyPrimaryColor(this.customThemeColor, true)) {
+            showToast('颜色格式错误，请输入 #RRGGBB 或 #RGB', 'error');
+            return;
+          }
+          showToast('已应用自定义主题色', 'success');
+        },
+
+        applyTheme(theme) {
+          this.theme = theme === 'dark' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', this.theme);
+          try {
+            localStorage.setItem('dashboard_theme', this.theme);
+          } catch (e) { }
+        },
+
+        toggleTheme() {
+          this.applyTheme(this.theme === 'dark' ? 'light' : 'dark');
+          showToast(this.theme === 'dark' ? '已切换为深色主题' : '已切换为浅色主题', 'info');
+        },
+
+        async init() {
+          this.initTheme();
+          await this.fetchStatus();
+          this.fetchInstalledPlugins();
+          this.fetchMarketPlugins();
+          this.fetchMirrors();
+          setInterval(() => this.fetchStatus(), 30000);
+        },
+
+        // 镜像管理方法
+        async fetchMirrors() {
+          try {
+            const data = await this.api('/mirrors');
+            this.mirrors.raw = data.rawMirrors || [];
+            this.mirrors.download = data.downloadMirrors || [];
+            // 同时初始化下载镜像列表，用于插件安装
+            this.downloadMirrors = data.downloadMirrors || [];
+            this.selectedDownloadMirror = data.selectedDownloadMirror;
+          } catch (e) {
+            console.error('Fetch mirrors failed:', e);
+            // 使用配置中的镜像列表
+            this.downloadMirrors = this.config.downloadMirrors || [];
+            this.selectedDownloadMirror = this.config.selectedDownloadMirror;
+          }
+        },
+
+        async saveMirrors(type) {
+          try {
+            const body = {};
+            if (type === 'raw') body.rawMirrors = this.mirrors.raw;
+            if (type === 'download') body.downloadMirrors = this.mirrors.download;
+            await this.api('/mirrors', 'POST', body);
+            showToast('保存成功', 'success');
+          } catch (e) {
+            showToast('保存失败: ' + e.message, 'error');
+          }
+        },
+
+        addMirror(type) {
+          if (type === 'raw') {
+            if (!this.newRawMirror) return;
+            let url = this.newRawMirror.trim();
+
+            if (url.endsWith('/')) url = url.slice(0, -1);
+
+            if (url) {
+              this.mirrors.raw.unshift(url);
+              this.newRawMirror = '';
+            }
+          } else {
+            if (!this.newDownloadMirror) return;
+            let url = this.newDownloadMirror.trim();
+            // 确保下载和商店源链接末尾带 /
+            if (!url.endsWith('/')) {
+              url += '/';
+            }
+            this.mirrors.download.unshift(url);
+            this.newDownloadMirror = '';
+          }
+          this.saveMirrors(type);
+        },
+
+        removeMirror(type, index) {
+          if (type === 'raw') {
+            this.mirrors.raw.splice(index, 1);
+          } else {
+            this.mirrors.download.splice(index, 1);
+          }
+          this.saveMirrors(type);
+        },
+
+        async saveConfig() {
+          try {
+            const groupStr = (this.config.notifyGroupsStr || '').trim();
+            const userStr = (this.config.notifyUsersStr || '').trim();
+            this.config.notifyGroups = groupStr ? groupStr.split(/[,，\s]+/).filter(v => v !== '') : [];
+            this.config.notifyUsers = userStr ? userStr.split(/[,，\s]+/).filter(v => v !== '') : [];
+            const blacklistStr = (this.config.blacklistStr || '').trim();
+            this.config.blacklist = blacklistStr ? blacklistStr.split(/[,，\s]+/).filter(v => v !== '') : [];
+
+            await this.api('/mirrors', 'POST', {
+              enabled: this.config.enabled,
+              commandPrefix: this.config.commandPrefix,
+              cooldownSeconds: this.config.cooldownSeconds,
+              masterQQ: this.config.masterQQ,
+              blacklist: this.config.blacklist,
+              updateMode: this.config.updateMode,
+              enableSchedule: this.config.enableSchedule,
+              checkInterval: this.config.checkInterval,
+              selectedRawMirror: this.config.selectedRawMirror,
+              selectedDownloadMirror: this.config.selectedDownloadMirror,
+              notifyGroups: this.config.notifyGroups,
+              notifyUsers: this.config.notifyUsers,
+              autoUpdatePlugins: this.config.autoUpdatePlugins,
+              ignoredPlugins: this.config.ignoredPlugins
+            });
+            // 保存成功后重置状态
+            this.originalConfig = JSON.parse(JSON.stringify(this.config));
+            this.hasUnsavedChanges = false;
+            showToast('配置保存成功', 'success');
+          } catch (e) {
+            console.error(e);
+            showToast('配置保存失败: ' + e.message, 'error');
+          }
+        },
+
+        async pingMirrors(type) {
+          try {
+            this.pingingMirrors = true;
+            this.pingResults[type] = [];
+            showToast('正在测速...', 'info');
+            const data = await this.api(`/mirrors/ping-${type}`);
+            this.pingResults[type] = data || [];
+            showToast('测速完成', 'success');
+          } catch (e) {
+            showToast('测速失败: ' + e.message, 'error');
+          } finally {
+            this.pingingMirrors = false;
+          }
+        },
+
+        // 插件市场方法
+        async fetchMarketPlugins() {
+          try {
+            this.isLoadingPlugins = true;
+            // 从启用的商店源获取插件
+            const enabledSources = this.pluginSources.filter(source => source.enabled);
+            const allPlugins = [];
+
+            for (const source of enabledSources) {
+              try {
+                const response = await fetch(source.url);
+                if (!response.ok) throw new Error(`Failed to fetch from ${source.name}`);
+                const data = await response.json();
+                const plugins = Array.isArray(data) ? data : data.plugins || [];
+                // 添加源信息到插件
+                plugins.forEach(plugin => {
+                  plugin.source = source.name;
+                  allPlugins.push(plugin);
+                });
+              } catch (e) {
+                console.error(`Error fetching from ${source.name}:`, e);
+              }
+            }
+
+            this.marketPlugins = allPlugins;
+          } catch (e) {
+            console.error('Failed to fetch market plugins:', e);
+          } finally {
+            this.isLoadingPlugins = false;
+          }
+        },
+
+        // 添加商店源
+        addSource() {
+          if (!this.newSource.name || !this.newSource.url) {
+            showToast('请填写完整的源信息', 'error');
+            return;
+          }
+
+          // 验证URL格式
+          try {
+            new URL(this.newSource.url);
+          } catch (e) {
+            showToast('请输入有效的URL地址', 'error');
+            return;
+          }
+
+          this.pluginSources.push({
+            name: this.newSource.name,
+            url: this.newSource.url,
+            enabled: true
+          });
+
+          this.savePluginSources();
+          this.showAddSourceModal = false;
+          this.newSource = { name: '', url: '' };
+          this.fetchMarketPlugins();
+          showToast('添加成功', 'success');
+        },
+
+        // 编辑商店源
+        editSource(index) {
+          const source = this.pluginSources[index];
+          this.newSource = { name: source.name, url: source.url };
+          this.editingSourceIndex = index;
+          this.showAddSourceModal = true;
+        },
+
+        // 保存商店源编辑
+        saveSource() {
+          if (!this.newSource.name || !this.newSource.url) {
+            showToast('请填写完整的源信息', 'error');
+            return;
+          }
+
+          // 验证URL格式
+          try {
+            new URL(this.newSource.url);
+          } catch (e) {
+            showToast('请输入有效的URL地址', 'error');
+            return;
+          }
+
+          if (this.editingSourceIndex !== null) {
+            this.pluginSources[this.editingSourceIndex] = {
+              ...this.pluginSources[this.editingSourceIndex],
+              name: this.newSource.name,
+              url: this.newSource.url
+            };
+
+            this.savePluginSources();
+            this.showAddSourceModal = false;
+            this.newSource = { name: '', url: '' };
+            this.editingSourceIndex = null;
+            this.fetchMarketPlugins();
+            showToast('保存成功', 'success');
+          }
+        },
+
+        // 移除商店源
+        removeSource(index) {
+          this.pluginSources.splice(index, 1);
+          this.savePluginSources();
+          this.fetchMarketPlugins();
+          showToast('移除成功', 'success');
+        },
+
+        // 切换商店源状态
+        toggleSource(index, enabled) {
+          this.pluginSources[index].enabled = enabled;
+          this.savePluginSources();
+          this.fetchMarketPlugins();
+          showToast(enabled ? '已启用' : '已禁用', 'success');
+        },
+
+        // 保存源配置
+        async savePluginSources() {
+          try {
+            await this.api('/plugin-sources', 'POST', { pluginSources: this.pluginSources });
+          } catch (e) {
+            showToast('保存源失败: ' + e.message, 'error');
+          }
+        },
+
+        // 判断插件安装状态：'installed' | 'updatable' | 'not-installed'
+        getPluginInstallStatus(marketPlugin) {
+          // 用商店插件的 id 或 name 来匹配已安装插件
+          // 优先通过 storeId（安装时记录的商店 ID）匹配，再 fallback 到 name/internalId/fileId
+          const pluginId = marketPlugin.id || marketPlugin.name;
+          const installed = this.installedPlugins.find(p =>
+            p.storeId === pluginId || p.name === pluginId || p.internalId === pluginId || p.fileId === pluginId
+          );
+          if (!installed) return 'not-installed';
+          // 有版本信息时做对比
+          if (marketPlugin.version && installed.currentVersion) {
+            return this.compareVersions(marketPlugin.version, installed.currentVersion) > 0
+              ? 'updatable'
+              : 'installed';
+          }
+          return 'installed';
+        },
+
+        // 判断是否是更新版本
+        isNewerVersion(newVersion, oldVersion) {
+          return this.compareVersions(newVersion, oldVersion) > 0;
+        },
+
+        // 从 GitHub URL 提取仓库信息
+        extractGitHubRepo(url) {
+          if (!url) return null;
+          try {
+            const urlObj = new URL(url);
+            if (urlObj.hostname === 'github.com' || urlObj.hostname === 'www.github.com') {
+              const parts = urlObj.pathname.split('/').filter(Boolean);
+              if (parts.length >= 2) {
+                return { owner: parts[0], repo: parts[1] };
+              }
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+          return null;
+        },
+
+        // 清理 README 中的 HTML 标签
+        cleanReadmeHtml(content) {
+          if (!content) return '';
+          // 移除 HTML 注释
+          let cleaned = content.replace(new RegExp('<!--[\\s\\S]*?-->', 'g'), '');
+          // 移除 style 和 script 标签及其内容
+          cleaned = cleaned.replace(new RegExp('<style[^>]*>[\\s\\S]*?<\\/style>', 'gi'), '');
+          cleaned = cleaned.replace(new RegExp('<script[^>]*>[\\s\\S]*?<\\/script>', 'gi'), '');
+          // 将 img 标签转为 markdown
+          cleaned = cleaned.replace(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']+)["'][^>]*>/gi, '![$2]($1)');
+          cleaned = cleaned.replace(/<img[^>]*alt=["']([^"']+)["'][^>]*src=["']([^"']+)["'][^>]*>/gi, '![$1]($2)');
+          cleaned = cleaned.replace(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi, '![]($1)');
+          // 移除其他 HTML 标签，但保留内容
+          cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, '');
+          // 清理多余的空行
+          cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+          return cleaned.trim();
+        },
+
+        // 简单的 Markdown 渲染函数
+        renderMarkdown(text) {
+          if (!text) return '';
+
+          // 转义 HTML 特殊字符（但保留我们需要的结构）
+          let html = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+          // 代码块
+          html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 rounded p-3 my-2 overflow-x-auto text-xs"><code>$2</code></pre>');
+
+          // 行内代码
+          html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-xs">$1</code>');
+
+          // 标题
+          html = html.replace(/^### (.+)$/gm, '<h4 class="font-bold text-base mt-4 mb-2">$1</h4>');
+          html = html.replace(/^## (.+)$/gm, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>');
+          html = html.replace(/^# (.+)$/gm, '<h2 class="font-bold text-xl mt-4 mb-2">$1</h2>');
+
+          // 粗体和斜体
+          html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+          // 链接
+          html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-blue-500 hover:underline">$1</a>');
+
+          // 图片
+          html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-2">');
+
+          // 无序列表
+          html = html.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');
+          html = html.replace(/(<li.*<\/li>\n?)+/g, '<ul class="list-disc my-2">$&</ul>');
+
+          // 有序列表
+          html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
+
+          // 引用
+          html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-gray-300 pl-4 my-2 text-gray-600">$1</blockquote>');
+
+          // 水平线
+          html = html.replace(/^---$/gm, '<hr class="my-4 border-gray-300">');
+
+          // 表格渲染
+          html = html.replace(/^\|(.+)\|\s*\n\|[-:\s|]+\|\s*\n((?:\|.+\|\s*\n?)+)/gm, (match, headerRow, bodyRows) => {
+            const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
+            const rows = bodyRows.trim().split('\n').map(row =>
+              row.split('|').map(cell => cell.trim()).filter(cell => cell)
+            );
+
+            let tableHtml = '<div class="overflow-x-auto my-4"><table class="min-w-full border border-gray-300 text-sm">';
+            tableHtml += '<thead class="bg-gray-100"><tr>';
+            headers.forEach(h => {
+              tableHtml += `<th class="border border-gray-300 px-3 py-2 text-left font-semibold">${h}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
+            rows.forEach(row => {
+              tableHtml += '<tr>';
+              row.forEach(cell => {
+                tableHtml += `<td class="border border-gray-300 px-3 py-2">${cell}</td>`;
+              });
+              tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table></div>';
+            return tableHtml;
+          });
+
+          // 段落
+          html = html.replace(/\n\n/g, '</p><p class="my-2">');
+          html = '<p class="my-2">' + html + '</p>';
+
+          // 清理空段落
+          html = html.replace(/<p class="my-2">\s*<\/p>/g, '');
+
+          return html;
+        },
+
+        // 获取 GitHub API 缓存
+        getGithubCache(key) {
+          const cached = this.githubCache[key];
+          if (cached && Date.now() - cached.timestamp < this.GITHUB_CACHE_DURATION) {
+            return cached.data;
+          }
+          return null;
+        },
+
+        // 设置 GitHub API 缓存
+        setGithubCache(key, data) {
+          this.githubCache[key] = {
+            data: data,
+            timestamp: Date.now()
+          };
+        },
+
+        // 获取 GitHub 仓库信息
+        async fetchGithubRepoInfo(owner, repo) {
+          const cacheKey = `repo_${owner}_${repo}`;
+          const cached = this.getGithubCache(cacheKey);
+          if (cached) return cached;
+
+          try {
+            const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+              headers: { Accept: 'application/vnd.github.v3+json' }
+            });
+            if (!response.ok) throw new Error('Failed to fetch repo info');
+            const data = await response.json();
+            this.setGithubCache(cacheKey, data);
+            return data;
+          } catch (error) {
+            console.error('Failed to fetch repo info:', error);
+            return null;
+          }
+        },
+
+        // 获取 GitHub Releases
+        async fetchGithubReleases(owner, repo) {
+          const cacheKey = `releases_${owner}_${repo}`;
+          const cached = this.getGithubCache(cacheKey);
+          if (cached) return cached;
+
+          try {
+            const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases?per_page=10`, {
+              headers: { Accept: 'application/vnd.github.v3+json' }
+            });
+            if (!response.ok) throw new Error('Failed to fetch releases');
+            const data = await response.json();
+            this.setGithubCache(cacheKey, data);
+            return data;
+          } catch (error) {
+            console.error('Failed to fetch releases:', error);
+            return [];
+          }
+        },
+
+        // 计算 Release 下载量
+        calculateReleaseDownloads(releases) {
+          let totalDownloads = 0;
+          if (releases && releases.length > 0) {
+            releases.forEach(release => {
+              if (release.assets) {
+                release.assets.forEach(asset => {
+                  totalDownloads += asset.download_count || 0;
+                });
+              }
+            });
+          }
+          return totalDownloads;
+        },
+
+        // 加载插件 README
+        async loadPluginReadme(plugin) {
+          // 重置状态
+          this.pluginReadme = '';
+          this.readmeError = false;
+          this.githubRepoInfo = null;
+          this.githubReleases = [];
+
+          // 尝试从 homepage 或 downloadUrl 提取 GitHub 仓库信息
+          const githubRepo = this.extractGitHubRepo(plugin.homepage) || this.extractGitHubRepo(plugin.downloadUrl);
+
+          if (!githubRepo) {
+            this.readmeLoading = false;
+            return;
+          }
+
+          this.readmeLoading = true;
+          this.githubRepoLoading = true;
+          this.githubReleasesLoading = true;
+
+          try {
+            // 并行获取 README、仓库信息和 Releases
+            const [readmeResponse, repoInfo, releases] = await Promise.all([
+              fetch(`https://api.github.com/repos/${githubRepo.owner}/${githubRepo.repo}/readme`, {
+                headers: { Accept: 'application/vnd.github.v3.raw' }
+              }),
+              this.fetchGithubRepoInfo(githubRepo.owner, githubRepo.repo),
+              this.fetchGithubReleases(githubRepo.owner, githubRepo.repo)
+            ]);
+
+            if (readmeResponse.ok) {
+              const content = await readmeResponse.text();
+              this.pluginReadme = this.cleanReadmeHtml(content);
+            } else {
+              this.readmeError = true;
+            }
+
+            this.githubRepoInfo = repoInfo;
+            this.githubReleases = releases || [];
+          } catch (error) {
+            console.error('Failed to fetch GitHub data:', error);
+            this.readmeError = true;
+          } finally {
+            this.readmeLoading = false;
+            this.githubRepoLoading = false;
+            this.githubReleasesLoading = false;
+          }
+        },
+
+        // 安装风险提醒：是否已永久关闭
+        isInstallWarningDismissed() {
+          try {
+            return localStorage.getItem(this.INSTALL_WARNING_DISMISS_KEY) === '1';
+          } catch (e) {
+            return false;
+          }
+        },
+
+        // 安装风险提醒：永久关闭
+        setInstallWarningDismissed() {
+          try {
+            localStorage.setItem(this.INSTALL_WARNING_DISMISS_KEY, '1');
+          } catch (e) { }
+        },
+
+        handleInstallWarningConfirm(dontShowAgain = false) {
+          const plugin = this.pendingInstallWarningPlugin;
+          this.showInstallWarningModal = false;
+          this.pendingInstallWarningPlugin = null;
+          this.installWarningShownInSession = true;
+
+          if (dontShowAgain) {
+            this.setInstallWarningDismissed();
+          }
+
+          if (plugin) {
+            this.startInstallPlugin(plugin);
+          }
+        },
+
+        // 安装/更新插件入口（包含首次风险提醒）
+        async installPlugin(plugin) {
+          if (!plugin) return;
+
+          if (!this.installWarningShownInSession && !this.isInstallWarningDismissed()) {
+            this.pendingInstallWarningPlugin = plugin;
+            this.showInstallWarningModal = true;
+            return;
+          }
+
+          this.startInstallPlugin(plugin);
+        },
+
+        // 实际安装流程
+        async startInstallPlugin(plugin) {
+          console.log('安装插件:', plugin);
+          const pluginId = plugin.id || plugin.name;
+          const displayName = plugin.displayName || plugin.name;
+          if (!plugin.downloadUrl) {
+            showToast(`插件 ${displayName} 没有下载地址`, 'error');
+            return;
+          }
+
+          // 已明确配置“不使用加速源”时，直接安装，不弹出镜像选择框
+          if (this.config.selectedDownloadMirror === 'direct') {
+            this.showMirrorSelectorModal = false;
+            this.pendingInstallPlugin = null;
+            this.installSelectedMirror = '';
+            this.installPingResults = [];
+            this.installPluginWithMirror(plugin, '');
+            return;
+          }
+
+          // 其他情况显示镜像选择弹窗并默认选择
+          this.pendingInstallPlugin = plugin;
+
+          let defaultMirror = '';
+          if (this.config.selectedDownloadMirror && this.config.selectedDownloadMirror !== 'direct') {
+            defaultMirror = this.config.selectedDownloadMirror;
+          } else if (this.downloadMirrors && this.downloadMirrors.length > 0 && this.config.selectedDownloadMirror !== 'direct') {
+            defaultMirror = this.downloadMirrors[0];
+          }
+          this.installSelectedMirror = defaultMirror;
+          this.installPingResults = [];
+
+          this.showMirrorSelectorModal = true;
+        },
+
+        async pingInstallMirrors() {
+          try {
+            this.pingingInstallMirrors = true;
+            this.installPingResults = [];
+            showToast('正在测速...', 'info');
+            const data = await this.api(`/mirrors/ping-download`);
+            this.installPingResults = data || [];
+
+            // 自动选中延迟最低的有效镜像
+            if (this.installPingResults.length > 0) {
+              const validResults = this.installPingResults.filter(r => r.ok && r.latency !== -1);
+              if (validResults.length > 0) {
+                validResults.sort((a, b) => a.latency - b.latency);
+                this.installSelectedMirror = validResults[0].url;
+              }
+            }
+            showToast('测速完成，已自动选择最快源', 'success');
+          } catch (e) {
+            showToast('测速失败: ' + e.message, 'error');
+          } finally {
+            this.pingingInstallMirrors = false;
+          }
+        },
+
+        confirmInstallPlugin() {
+          if (!this.pendingInstallPlugin) return;
+          const plugin = this.pendingInstallPlugin;
+          const mirror = this.installSelectedMirror;
+
+          // 选择下载后自动关闭加速源二级页
+          this.showMirrorSelectorModal = false;
+          this.pendingInstallPlugin = null;
+
+          // 提交安装请求
+          this.installPluginWithMirror(plugin, mirror);
+        },
+
+        // 选择镜像后安装插件
+        async installPluginWithMirror(plugin, mirror) {
+          const pluginId = plugin.id || plugin.name;
+          const displayName = plugin.displayName || plugin.name;
+          try {
+            this.installingPlugins = { ...this.installingPlugins, [pluginId]: true };
+            const status = this.getPluginInstallStatus(plugin);
+            const verb = status === 'updatable' ? '更新' : '安装';
+
+            // 显示安装进度对话框
+            this.installProgress = {
+              show: true,
+              message: `准备${verb} ${displayName}...`,
+              progress: 0,
+              speedStr: '0 B/s',
+              eta: 0,
+              downloadedStr: '0.0MB',
+              totalStr: '0.0MB'
+            };
+
+            await this.api('/install-plugin', 'POST', {
+              pluginName: pluginId,
+              displayName: displayName,
+              version: plugin.version,
+              downloadUrl: plugin.downloadUrl,
+              mirror: mirror,
+              source: plugin.source
+            });
+
+            // 更新进度为完成
+            this.installProgress.progress = 100;
+            this.installProgress.message = `${verb}完成：${displayName}`;
+
+            // 延迟关闭进度对话框，让用户看到完成状态
+            setTimeout(() => {
+              this.installProgress.show = false;
+              showToast(`${verb}成功：${displayName}`, 'success');
+            }, 1000);
+
+            // 重新获取已安装插件列表
+            await this.fetchInstalledPlugins();
+          } catch (e) {
+            console.error('安装失败:', e);
+            this.installProgress.show = false;
+            showToast('操作失败: ' + (e.message || String(e)), 'error');
+          } finally {
+            const updated = { ...this.installingPlugins };
+            delete updated[pluginId];
+            this.installingPlugins = updated;
+
+            if (this.installProgress.show) {
+              this.installProgress.show = false;
+            }
+          }
+        },
+
+        // 处理拖拽导入
+        async handleImportDrop(event) {
+          this.importDragOver = false;
+          const files = event.dataTransfer?.files;
+          if (!files || files.length === 0) return;
+          const file = files[0];
+          if (!file.name.endsWith('.zip')) {
+            showToast('只支持 .zip 格式的插件文件', 'error');
+            return;
+          }
+          await this.doImportZipFile(file);
+        },
+
+        // 处理文件选择导入
+        async handleImportFileSelect(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          await this.doImportZipFile(file);
+          event.target.value = '';
+        },
+
+        // 执行 zip 文件导入
+        async doImportZipFile(file) {
+          try {
+            this.importLoading = true;
+            showToast(`正在读取 ${file.name}...`, 'info');
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = e => {
+                const result = e.target.result;
+                resolve(result.split(',')[1]); // 去掉 data:...;base64, 前缀
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            await this.api('/import-plugin', 'POST', {
+              fileName: file.name,
+              fileData: base64
+            });
+            showToast(`导入成功！（可能需要重启生效）`, 'success');
+            this.showImportModal = false;
+            await this.fetchInstalledPlugins();
+          } catch (e) {
+            showToast('导入失败: ' + (e.message || String(e)), 'error');
+          } finally {
+            this.importLoading = false;
+          }
+        },
+
+        handleTitleClick() {
+          this.clickCount++;
+          if (this.clickTimer) clearTimeout(this.clickTimer);
+
+          if (this.clickCount >= 5) {
+            this.showSecretPanel = true;
+            this.clickCount = 0;
+            this.loadSecretConfig();
+            return;
+          }
+
+          this.clickTimer = setTimeout(() => {
+            this.clickCount = 0;
+          }, 1000);
+        },
+
+        loadSecretConfig() {
+          this.secretConfig = {
+            customForwardInfo: this.config.customForwardInfo || false,
+            customForwardQQ: this.config.customForwardQQ || '',
+            customForwardName: this.config.customForwardName || '',
+          };
+        },
+
+        resetSecretConfig() {
+          this.loadSecretConfig();
+          showToast('已重置', 'info');
+        },
+
+        async saveSecretConfig() {
+          this.confirmDialogMessage = '确认给项目仓库点小星星了吗？没点星星的都是大坏蛋！';
+          this.confirmCallback = async () => {
+            try {
+              await this.api('/secret-config', 'POST', this.secretConfig);
+              this.config.customForwardInfo = this.secretConfig.customForwardInfo;
+              this.config.customForwardQQ = this.secretConfig.customForwardQQ;
+              this.config.customForwardName = this.secretConfig.customForwardName;
+              showToast('配置已保存', 'success');
+            } catch (e) {
+              showToast('保存失败: ' + e.message, 'error');
+            }
+          };
+          this.showConfirmDialog = true;
+        },
+
+        handleConfirmOk() {
+          this.showConfirmDialog = false;
+          if (this.confirmCallback) {
+            this.confirmCallback();
+            this.confirmCallback = null;
+          }
+        },
+
+        handleConfirmCancel() {
+          this.showConfirmDialog = false;
+          this.confirmCallback = null;
+          showToast('请先去 GitHub 给项目点个小星星吧！', 'info');
+        },
+
+        formatUptime(seconds) {
+          if (!seconds || seconds < 0) return '-';
+          const days = Math.floor(seconds / 86400);
+          const hours = Math.floor((seconds % 86400) / 3600);
+          const minutes = Math.floor((seconds % 3600) / 60);
+          const secs = Math.floor(seconds % 60);
+
+          const parts = [];
+          if (days > 0) parts.push(`${days}天`);
+          if (hours > 0) parts.push(`${hours}小时`);
+          if (minutes > 0) parts.push(`${minutes}分`);
+          parts.push(`${secs}秒`);
+
+          return parts.join(' ');
+        },
+
+        async api(path, method = 'GET', body = null) {
+          const url = API_BASE + path;
+          const opts = {
+            method,
+            headers: authHeaders({
+              'Content-Type': 'application/json'
+            })
+          };
+          if (method === 'GET') delete opts.headers['Content-Type'];
+
+          if (body) {
+            opts.body = JSON.stringify(body);
+          }
+
+          const res = await fetch(url, opts);
+          const json = await res.json();
+
+          if (res.status >= 400) {
+            throw new Error(json.message || 'Request failed');
+          }
+
+          // 检查业务逻辑错误码（后端返回 code: -1 表示操作失败）
+          if (json.code !== undefined && json.code !== 0) {
+            throw new Error(json.message || '操作失败');
+          }
+
+          return json.data !== undefined ? json.data : json;
+        },
+
+        async fetchStatus() {
+          try {
+            const data = await this.api('/status');
+            this.status = {
+              online: true,
+              text: '运行中',
+              uptimeFormatted: data.uptimeFormatted || '-',
+            };
+
+            // 有未保存草稿时，避免轮询覆盖用户正在编辑的字段
+            const keepLocalDraft = this.hasUnsavedChanges && this.hasConfigChanged();
+            const localDraft = keepLocalDraft
+              ? {
+                commandPrefix: this.config.commandPrefix,
+                cooldownSeconds: this.config.cooldownSeconds,
+                updateMode: this.config.updateMode,
+                checkInterval: this.config.checkInterval,
+                notifyGroupsStr: this.config.notifyGroupsStr,
+                notifyUsersStr: this.config.notifyUsersStr,
+                masterQQ: this.config.masterQQ,
+                blacklistStr: this.config.blacklistStr,
+              }
+              : null;
+
+            const nextConfig = data.config || createDefaultConfig();
+            nextConfig.notifyGroupsStr = (nextConfig.notifyGroups || []).join(', ');
+            nextConfig.notifyUsersStr = (nextConfig.notifyUsers || []).join(', ');
+            nextConfig.masterQQ = nextConfig.masterQQ || '';
+            nextConfig.blacklistStr = (nextConfig.blacklist || []).join(', ');
+
+            if (keepLocalDraft) {
+              Object.assign(nextConfig, localDraft);
+              this.hasUnsavedChanges = true;
+            } else {
+              this.originalConfig = JSON.parse(JSON.stringify(nextConfig));
+              this.hasUnsavedChanges = false;
+            }
+
+            this.config = nextConfig;
+            this.pluginSources = this.config.pluginSources || [];
+          } catch (e) {
+            this.status.online = false;
+            this.status.text = '连接断开';
+            this.status.uptimeFormatted = '-';
+          }
+        },
+
+        // 标记非开关类配置项已修改
+        markNonSwitchChanged() {
+          if (!this.originalConfig) {
+            this.originalConfig = JSON.parse(JSON.stringify(this.config));
+          }
+          this.hasUnsavedChanges = true;
+        },
+
+        // 检查配置是否真的发生了变化
+        hasConfigChanged() {
+          if (!this.originalConfig) return false;
+          // 只检查非开关类的配置项
+          const keysToCheck = [
+            'commandPrefix', 'cooldownSeconds', 'updateMode', 'checkInterval',
+            'notifyGroupsStr', 'notifyUsersStr', 'masterQQ', 'blacklistStr'
+          ];
+          for (const key of keysToCheck) {
+            if (String(this.config[key]) !== String(this.originalConfig[key])) {
+              return true;
+            }
+          }
+          return false;
+        },
+
+        async fetchInstalledPlugins() {
+          try {
+            this.installedPlugins = await this.api('/plugins');
+            // 构建插件信息映射
+            this.pluginInfoMap = {};
+            for (const plugin of this.installedPlugins) {
+              this.pluginInfoMap[plugin.name] = plugin;
+            }
+          } catch (e) {
+            console.error('Failed to load plugins');
+          }
+        },
+
+        // 获取插件信息
+        getPluginInfo(pluginName) {
+          return this.pluginInfoMap[pluginName] || { displayName: pluginName, author: '', description: '', currentVersion: '', icon: '' };
+        },
+
+        // 获取插件显示名称
+        getPluginDisplayName(pluginName) {
+          const pluginInfo = this.getPluginInfo(pluginName);
+          return pluginInfo.displayName || pluginName;
+        },
+
+        // 获取插件作者
+        getPluginAuthor(pluginName) {
+          const pluginInfo = this.getPluginInfo(pluginName);
+          return pluginInfo.author || '';
+        },
+
+        // 获取插件图标
+        getPluginIconUrl(pluginName) {
+          const pluginInfo = this.getPluginInfo(pluginName);
+          return pluginInfo.icon || '';
+        },
+
+        // 获取插件描述
+        getPluginDescription(pluginName) {
+          const pluginInfo = this.getPluginInfo(pluginName);
+          return pluginInfo.description || '';
+        },
+
+        // 获取插件版本号
+        getPluginVersion(pluginName) {
+          const pluginInfo = this.getPluginInfo(pluginName);
+          return pluginInfo.currentVersion || '';
+        },
+
+        // 自动更新插件管理
+        async addAutoUpdatePlugin(pluginName) {
+          const name = pluginName || this.newPluginName.trim();
+          if (!name) {
+            showToast('请输入插件包名', 'error');
+            return;
+          }
+
+          if (this.config.autoUpdatePlugins.includes(name)) {
+            showToast('插件已存在', 'error');
+            return;
+          }
+
+          try {
+            await this.api('/auto-update-plugins', 'POST', { pluginName: name });
+            this.newPluginName = '';
+            await this.fetchStatus();
+            showToast('添加成功', 'success');
+          } catch (e) {
+            showToast('添加失败: ' + e.message, 'error');
+          }
+        },
+
+        async removeAutoUpdatePlugin(index) {
+          try {
+            await this.api('/auto-update-plugins/' + index, 'DELETE');
+            await this.fetchStatus();
+            showToast('删除成功', 'success');
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        },
+
+        async clearAutoUpdatePlugins() {
+          try {
+            await this.api('/auto-update-plugins', 'DELETE');
+            await this.fetchStatus();
+            showToast('清空成功', 'success');
+          } catch (e) {
+            showToast('清空失败: ' + e.message, 'error');
+          }
+        },
+
+        // 黑名单插件管理
+        async addIgnoredPlugin(pluginName) {
+          const name = pluginName || this.newIgnoredPluginName.trim();
+          if (!name) {
+            showToast('请输入插件包名', 'error');
+            return;
+          }
+
+          if (this.config.ignoredPlugins.includes(name)) {
+            showToast('插件已在黑名单中', 'error');
+            return;
+          }
+
+          try {
+            await this.api('/ignored-plugins', 'POST', { pluginName: name });
+            this.newIgnoredPluginName = '';
+            await this.fetchStatus();
+            showToast('添加成功', 'success');
+          } catch (e) {
+            showToast('添加失败: ' + e.message, 'error');
+          }
+        },
+
+        async removeIgnoredPlugin(index) {
+          try {
+            await this.api('/ignored-plugins/' + index, 'DELETE');
+            await this.fetchStatus();
+            showToast('删除成功', 'success');
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        },
+
+        async clearIgnoredPlugins() {
+          try {
+            await this.api('/ignored-plugins', 'DELETE');
+            await this.fetchStatus();
+            showToast('清空成功', 'success');
+          } catch (e) {
+            showToast('清空失败: ' + e.message, 'error');
+          }
+        },
+
+        // 切换自动更新状态
+        async toggleAutoUpdatePlugin(pluginName, enabled) {
+          try {
+            if (enabled) {
+              // 添加到自动更新列表
+              await this.api('/auto-update-plugins', 'POST', { pluginName });
+            } else {
+              // 从自动更新列表移除
+              const index = this.config.autoUpdatePlugins.indexOf(pluginName);
+              if (index > -1) {
+                await this.api('/auto-update-plugins/' + index, 'DELETE');
+              }
+            }
+            await this.fetchStatus();
+            showToast(enabled ? '添加成功' : '移除成功', 'success');
+          } catch (e) {
+            showToast('操作失败: ' + e.message, 'error');
+          }
+        },
+
+        // 切换黑名单状态
+        async toggleIgnoredPlugin(pluginName, enabled) {
+          try {
+            if (enabled) {
+              // 添加到黑名单
+              await this.api('/ignored-plugins', 'POST', { pluginName });
+            } else {
+              // 从黑名单移除
+              const index = this.config.ignoredPlugins.indexOf(pluginName);
+              if (index > -1) {
+                await this.api('/ignored-plugins/' + index, 'DELETE');
+              }
+            }
+            await this.fetchStatus();
+            showToast(enabled ? '添加成功' : '移除成功', 'success');
+          } catch (e) {
+            showToast('操作失败: ' + e.message, 'error');
+          }
+        },
+
+      };
+    }
+  </script>
+</body>
+
+</html>
