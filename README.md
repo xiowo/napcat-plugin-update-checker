@@ -2,7 +2,9 @@
 
 
 
-这是一个专为 **NapCat** 框架设计的强大插件更新检测与管理工具。它能够自动监控已安装插件的版本，支持多源扩展、定时提醒、自动更新以及完善的 WebUI 管理界面，让您的 NapCat 插件始终保持最新状态。
+这是一个专为 [NapCat](https://github.com/NapNeko/NapCatQQ) 框架设计的强大插件更新检测与管理工具。它能够自动监控已安装插件的版本，支持多源扩展、定时提醒、自动更新以及完善的 WebUI 管理界面，让您的 NapCat 插件始终保持最新状态。
+
+内置插件源仓库：[HolyFoxTeam](https://github.com/HolyFoxTeam/napcat-plugin-community-index)
 
 ---
 
