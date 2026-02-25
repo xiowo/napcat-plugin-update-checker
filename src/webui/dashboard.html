@@ -915,7 +915,7 @@
               </div>
             </div>
           </div>
-          <div class="card p-4 relative" :class="sortDropdownOpen ? 'z-30' : 'z-10'"
+          <div class="card p-4 relative" :class="sortDropdownOpen ? 'z-50' : 'z-10'"
             @click.outside="sortDropdownOpen = false">
             <div class="flex items-center justify-between cursor-pointer" @click="sortDropdownOpen = !sortDropdownOpen"
               style="min-height: 44px;">
@@ -944,7 +944,7 @@
         </div>
 
         <!-- 标签分类 -->
-        <div class="card p-4 relative z-30">
+        <div class="card p-4 relative" :class="(installStatusDropdownOpen || sourceDropdownOpen) ? 'z-40' : 'z-10'">
           <div class="flex items-center justify-between mb-3">
             <h4 class="font-medium" style="color: var(--text)">标签分类</h4>
             <div class="flex items-center gap-4">
