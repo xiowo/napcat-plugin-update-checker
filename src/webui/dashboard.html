@@ -915,7 +915,7 @@
               </div>
             </div>
           </div>
-          <div class="card p-4 relative" :class="sortDropdownOpen ? 'z-20' : ''"
+          <div class="card p-4 relative" :class="sortDropdownOpen ? 'z-30' : 'z-10'"
             @click.outside="sortDropdownOpen = false">
             <div class="flex items-center justify-between cursor-pointer" @click="sortDropdownOpen = !sortDropdownOpen"
               style="min-height: 44px;">
@@ -929,7 +929,7 @@
               </svg>
             </div>
             <div x-show="sortDropdownOpen" x-transition x-cloak
-              class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+              class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-[70] space-y-1">
               <button @click="sortBy = 'popular'; sortDropdownOpen = false"
                 :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'popular' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
                 热门排序
@@ -944,11 +944,12 @@
         </div>
 
         <!-- 标签分类 -->
-        <div class="card p-4 relative" :class="sourceDropdownOpen ? 'z-20' : ''">
+        <div class="card p-4 relative z-30">
           <div class="flex items-center justify-between mb-3">
             <h4 class="font-medium" style="color: var(--text)">标签分类</h4>
             <div class="flex items-center gap-4">
-              <div class="relative" @click.outside="installStatusDropdownOpen = false">
+              <div class="relative" :class="installStatusDropdownOpen ? 'z-40' : ''"
+                @click.outside="installStatusDropdownOpen = false">
                 <div class="flex items-center justify-between cursor-pointer"
                   @click="installStatusDropdownOpen = !installStatusDropdownOpen">
                   <h4 class="font-medium text-sm select-none flex items-center gap-1" style="color: var(--text)">
@@ -963,7 +964,7 @@
                   </h4>
                 </div>
                 <div x-show="installStatusDropdownOpen" x-transition x-cloak
-                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 min-w-[120px]">
+                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-[70] space-y-1 min-w-[120px]">
                   <button @click="selectedInstallStatus = 'all'; installStatusDropdownOpen = false"
                     :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', selectedInstallStatus === 'all' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
                     全部
@@ -982,7 +983,8 @@
                   </button>
                 </div>
               </div>
-              <div class="relative" @click.outside="sourceDropdownOpen = false">
+              <div class="relative" :class="sourceDropdownOpen ? 'z-40' : ''"
+                @click.outside="sourceDropdownOpen = false">
                 <div class="flex items-center justify-between cursor-pointer"
                   @click="sourceDropdownOpen = !sourceDropdownOpen">
                   <h4 class="font-medium text-sm select-none flex items-center gap-1" style="color: var(--text)">
@@ -997,7 +999,7 @@
                   </h4>
                 </div>
                 <div x-show="sourceDropdownOpen" x-transition x-cloak
-                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 min-w-[150px]">
+                  class="absolute right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-[70] space-y-1 min-w-[150px]">
                   <button @click="selectedSource = 'all'; sourceDropdownOpen = false"
                     :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm max-w-[200px] truncate', selectedSource === 'all' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
                     全部
@@ -1027,7 +1029,7 @@
         </div>
 
         <!-- 插件列表 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-0">
           <template x-for="(plugin, index) in filteredMarketPlugins"
             :key="(plugin.id || plugin.name) + '-' + plugin.source">
             <div
