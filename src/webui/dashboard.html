@@ -1510,7 +1510,7 @@
             <div class="flex flex-col gap-2">
               <label class="text-sm font-medium" style="color: var(--text-secondary)">命令前缀</label>
               <input type="text" x-model="config.commandPrefix" @input="markNonSwitchChanged()"
-                @change="markNonSwitchChanged()" placeholder="触发命令的前缀，默认为 #更新" class="input flex-1">
+                @change="markNonSwitchChanged()" placeholder="触发命令的前缀，默认为 #更新插件" class="input flex-1">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-sm font-medium" style="color: var(--text-secondary)">冷却时间（秒）</label>
@@ -2033,7 +2033,7 @@
     function createDefaultConfig() {
       return {
         enabled: true,
-        commandPrefix: '#更新',
+        commandPrefix: '#更新插件',
         cooldownSeconds: 60,
         masterQQ: '',
         blacklist: [],

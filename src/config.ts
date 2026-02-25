@@ -9,7 +9,7 @@ import type { PluginConfig } from './types';
 /** 默认配置 */
 export const DEFAULT_CONFIG: PluginConfig = {
     enabled: true,
-    commandPrefix: '#更新',
+    commandPrefix: '#更新插件',
     cooldownSeconds: 60,
     masterQQ: '',
     blacklist: [],
