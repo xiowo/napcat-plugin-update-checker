@@ -2608,6 +2608,43 @@
                 if (!response.ok) throw new Error(`Failed to fetch from ${source.name}`);
                 const data = await response.json();
                 const plugins = Array.isArray(data) ? data : data.plugins || [];
+
+                const isGithubRawSource = (() => {
+                  try {
+                    const sourceUrl = new URL(source.url);
+                    if (sourceUrl.hostname !== 'raw.githubusercontent.com') return false;
+                    const parts = sourceUrl.pathname.split('/').filter(Boolean);
+                    return parts.length >= 6 && parts[2] === 'refs' && parts[3] === 'heads';
+                  } catch {
+                    return false;
+                  }
+                })();
+
+                if (isGithubRawSource) {
+                  try {
+                    const sourceUrl = new URL(source.url);
+                    const parts = sourceUrl.pathname.split('/').filter(Boolean);
+                    const owner = parts[0];
+                    const repo = parts[1];
+                    const downloadsUrl = `${sourceUrl.protocol}//${sourceUrl.host}/${owner}/${repo}/refs/heads/store/downloads.json`;
+
+                    const dres = await fetch(downloadsUrl);
+                    if (dres.ok) {
+                      const downloadsData = await dres.json();
+                      if (downloadsData && typeof downloadsData === 'object') {
+                        for (const p of plugins) {
+                          const id = p.id || p.name;
+                          if (id && downloadsData[id] !== undefined) {
+                            p.downloadCount = Number(downloadsData[id]) || 0;
+                          }
+                        }
+                      }
+                    }
+                  } catch (er) {
+                    console.debug(`拉取 ${source.name} GitHub 下载数据失败`, er);
+                  }
+                }
+
                 // 添加源信息到插件
                 plugins.forEach(plugin => {
                   plugin.source = source.name;
