@@ -1,7 +1,7 @@
 {
   "name": "napcat-plugin-update-checker",
   "plugin": "插件更新检测",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "index.mjs",
   "description": "一个支持添加第三方插件源的插件更新检测工具，定时检查已安装插件更新，可设置提醒或自动更新。",
