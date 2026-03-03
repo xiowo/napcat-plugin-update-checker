@@ -15,7 +15,7 @@
  *   plugin_set_config         → 自定义配置保存
  *   plugin_on_config_change   → 配置变更回调
  *
- * @author Your Name
+ * @author MortalCat
  * @license MIT
  */
 
@@ -28,7 +28,15 @@ import { buildConfigSchema } from './config';
 import { pluginState } from './core/state';
 import { handleMessage } from './handlers/message-handler';
 import { startScheduler, stopScheduler } from './services/scheduler';
-import { pingRawMirrors, pingDownloadMirrors, GITHUB_RAW_MIRRORS, DOWNLOAD_MIRRORS, installPluginWithResult } from './services/updater';
+import {
+    pingRawMirrors,
+    pingDownloadMirrors,
+    GITHUB_RAW_MIRRORS,
+    DOWNLOAD_MIRRORS,
+    installPluginWithResult,
+    hasCachedPluginIcon,
+    getCachedPluginIconPath
+} from './services/updater';
 import type { PluginConfig, PluginSource } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -280,6 +288,29 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
         }
     });
 
+    // 插件图标读取（安装/更新后缓存到 config/plugins/<pluginId>/icon.png）
+    base.get('/plugin-icon/:pluginName', async (req: any, res: any) => {
+        try {
+            const pluginName = String(req.params?.pluginName || '').trim();
+            if (!pluginName) return res.status(400).end();
+
+            if (!hasCachedPluginIcon(pluginName)) {
+                return res.status(404).end();
+            }
+
+            const iconPath = getCachedPluginIconPath(pluginName);
+            if (!fs.existsSync(iconPath)) {
+                return res.status(404).end();
+            }
+
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            res.type('image/png');
+            res.send(fs.readFileSync(iconPath));
+        } catch (_e) {
+            return res.status(404).end();
+        }
+    });
+
     // 插件列表
     base.get('/plugins', async (_req: any, res: any) => {
         try {
@@ -294,7 +325,9 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                     const pluginId = pkgName || plugin.id || plugin.fileId;
                     const folderId = String(plugin.id || plugin.fileId || '');
 
-                    let iconUrl = '';
+                    const iconUrl = hasCachedPluginIcon(pluginId)
+                        ? `/plugin-icon/${encodeURIComponent(pluginId)}`
+                        : '';
 
                     // 读取商店元数据，获取商店 ID 和源信息
                     let storeId = '';
@@ -352,7 +385,9 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 if (plugin) {
                     const pkgName = plugin.packageJson?.name;
                     const pluginId = pkgName || plugin.id || plugin.fileId;
-                    let iconUrl = '';
+                    const iconUrl = hasCachedPluginIcon(pluginId)
+                        ? `/plugin-icon/${encodeURIComponent(pluginId)}`
+                        : '';
 
                     res.json({
                         code: 0,

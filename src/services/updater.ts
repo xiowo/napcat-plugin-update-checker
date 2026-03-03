@@ -468,6 +468,115 @@ function getErrorMessage(err: unknown): string {
     return String(err);
 }
 
+function validatePluginId(pluginId: string): string {
+    const safeId = path.basename(String(pluginId || ''));
+    if (!safeId || !/^[a-zA-Z0-9._-]+$/.test(safeId)) {
+        throw new Error('非法插件 ID');
+    }
+    return safeId;
+}
+
+function getPluginDataDir(pluginId: string): string {
+    const safeId = validatePluginId(pluginId);
+    const pm = pluginState.pluginManager as any;
+
+    if (pm?.getPluginDataPath) {
+        return pm.getPluginDataPath(safeId);
+    }
+
+    const pluginConfigDir = path.dirname(pluginState.ctx.configPath);
+    const pluginsConfigRoot = path.dirname(pluginConfigDir);
+    return path.join(pluginsConfigRoot, safeId);
+}
+
+export function getCachedPluginIconPath(pluginId: string): string {
+    return path.join(getPluginDataDir(pluginId), 'icon.png');
+}
+
+export function hasCachedPluginIcon(pluginId: string): boolean {
+    try {
+        return fs.existsSync(getCachedPluginIconPath(pluginId));
+    } catch {
+        return false;
+    }
+}
+
+function extractRepositoryUrl(repository: any): string {
+    if (!repository) return '';
+    if (typeof repository === 'string') return repository;
+    if (typeof repository.url === 'string') return repository.url;
+    return '';
+}
+
+function extractGithubOwner(rawUrl: string): string {
+    if (!rawUrl) return '';
+
+    const tryParseOwner = (urlStr: string): string => {
+        try {
+            const u = new URL(urlStr);
+            if (u.hostname !== 'github.com' && u.hostname !== 'www.github.com') {
+                return '';
+            }
+            const parts = u.pathname.split('/').filter(Boolean);
+            return parts[0] || '';
+        } catch {
+            return '';
+        }
+    };
+
+    // 直接解析
+    let owner = tryParseOwner(rawUrl);
+    if (owner) return owner;
+
+    const marker = 'https://github.com/';
+    const idx = rawUrl.indexOf(marker);
+    if (idx >= 0) {
+        owner = tryParseOwner(rawUrl.slice(idx));
+        if (owner) return owner;
+    }
+
+    return '';
+}
+
+async function cachePluginIcon(pluginId: string, candidates: Array<string | undefined>): Promise<void> {
+    const iconPath = getCachedPluginIconPath(pluginId);
+    if (fs.existsSync(iconPath)) {
+        return;
+    }
+
+    const owners = new Set<string>();
+    for (const candidate of candidates) {
+        const owner = extractGithubOwner(String(candidate || '').trim());
+        if (owner) owners.add(owner);
+    }
+
+    if (owners.size === 0) return;
+
+    const dataDir = path.dirname(iconPath);
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    for (const owner of owners) {
+        const avatarUrl = `https://github.com/${owner}.png?size=128`;
+        try {
+            const res = await fetch(avatarUrl, {
+                headers: { 'User-Agent': 'napcat-plugin-update-checker' },
+                signal: AbortSignal.timeout(15000),
+                redirect: 'follow',
+            });
+            if (!res.ok || !res.body) continue;
+
+            const fileStream = createWriteStream(iconPath);
+            await pipeline(Readable.fromWeb(res.body as any), fileStream);
+            pluginState.logger.info(`已缓存插件图标: ${pluginId}`);
+            return;
+        } catch (e) {
+            pluginState.logger.debug(`缓存图标失败（${owner}）: ${getErrorMessage(e)}`);
+        }
+    }
+}
+
 /** 安装/更新单个插件 */
 export async function installPluginWithResult(update: UpdateInfo): Promise<InstallPluginResult> {
     const pm = pluginState.pluginManager;
@@ -531,6 +640,9 @@ export async function installPluginWithResult(update: UpdateInfo): Promise<Insta
             throw new Error('插件格式错误：package.json 中缺少 name 字段');
         }
 
+        const homepage = typeof packageJson.homepage === 'string' ? packageJson.homepage : '';
+        const repositoryUrl = extractRepositoryUrl(packageJson.repository);
+
         // 检查是否已安装同名插件
         const pluginDir = path.join(pluginsDir, pluginName);
         const pluginExists = fs.existsSync(pluginDir);
@@ -577,6 +689,13 @@ export async function installPluginWithResult(update: UpdateInfo): Promise<Insta
             if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
             fs.copyFileSync(configBackup, userConfigPath);
             fs.unlinkSync(configBackup);
+        }
+
+        // 缓存插件图标
+        try {
+            await cachePluginIcon(pluginName, [update.downloadUrl, homepage, repositoryUrl]);
+        } catch (e) {
+            pluginState.logger.debug(`缓存插件图标异常: ${getErrorMessage(e)}`);
         }
 
         // 通过 pluginManager 重载或加载插件
