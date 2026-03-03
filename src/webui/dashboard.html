@@ -1353,14 +1353,16 @@
                     <span class="text-xs px-2 py-0.5 rounded-full bg-[var(--primary)] text-white"
                       x-text="'v' + (githubRepoInfo?.tag_name || selectedPlugin?.version || '1.0.0')"></span>
                     <span class="text-xs text-slate-500" x-text="'by ' + (selectedPlugin?.author || 'Unknown')"></span>
-                    <a x-if="selectedPlugin?.homepage" :href="selectedPlugin.homepage" target="_blank" rel="noreferrer"
-                      class="text-xs text-[var(--primary)] hover:underline flex items-center gap-1">
-                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      主页
-                    </a>
+                    <template x-if="selectedPlugin?.homepage">
+                      <a :href="selectedPlugin?.homepage || '#'" target="_blank" rel="noreferrer"
+                        class="text-xs text-[var(--primary)] hover:underline flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        主页
+                      </a>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -1427,7 +1429,7 @@
                 <div class="flex flex-col">
                   <span class="text-slate-500 text-xs">最低要求版本</span>
                   <span class="font-medium"
-                    x-text="selectedPlugin?.minVersion ? 'v' + selectedPlugin.minVersion : '无限制'"></span>
+                    x-text="selectedPlugin?.minVersion ? 'v' + selectedPlugin?.minVersion : '无限制'"></span>
                 </div>
                 <div class="flex flex-col">
                   <span class="text-slate-500 text-xs">开源协议</span>
@@ -1453,14 +1455,16 @@
               <!-- 加载失败 -->
               <div x-show="readmeError && !readmeLoading" class="text-center py-8">
                 <p class="text-sm text-slate-500 mb-3">无法加载 README</p>
-                <a x-if="selectedPlugin?.homepage" :href="selectedPlugin.homepage" target="_blank" rel="noreferrer"
-                  class="btn btn-primary text-sm inline-flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  在 GitHub 查看
-                </a>
+                <template x-if="selectedPlugin?.homepage">
+                  <a :href="selectedPlugin?.homepage || '#'" target="_blank" rel="noreferrer"
+                    class="btn btn-primary text-sm inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    在 GitHub 查看
+                  </a>
+                </template>
               </div>
 
               <!-- README 内容 -->
@@ -1480,15 +1484,17 @@
                 </div>
                 <div class="flex items-center gap-3">
                   <!-- 下载插件文件按钮 -->
-                  <a x-if="selectedPlugin?.downloadUrl" :href="selectedPlugin.downloadUrl" target="_blank"
-                    rel="noreferrer" class="btn text-sm inline-flex items-center gap-2"
-                    style="background: var(--border-light); color: var(--text);">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    下载文件
-                  </a>
+                  <template x-if="selectedPlugin?.downloadUrl">
+                    <a :href="selectedPlugin?.downloadUrl || '#'" target="_blank" rel="noreferrer"
+                      class="btn text-sm inline-flex items-center gap-2"
+                      style="background: var(--border-light); color: var(--text);">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      下载文件
+                    </a>
+                  </template>
                   <button @click="installPlugin(selectedPlugin)"
                     :class="['btn text-sm', getPluginInstallStatus(selectedPlugin) === 'installed' ? 'btn-secondary' : 'btn-primary']"
                     :disabled="getPluginInstallStatus(selectedPlugin) === 'installed' || !!installingPlugins[selectedPlugin?.id || selectedPlugin?.name]">
@@ -2517,7 +2523,9 @@
         // 插件图标生成
         getPluginIcon(pluginName) {
           const icons = ['🔌', '📦', '🚀', '⚡', '🔄', '📡', '🎯', '🛠️', '🧩', '🎨'];
-          const hash = pluginName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const normalizedName = String(pluginName || '');
+          if (!normalizedName) return icons[0];
+          const hash = normalizedName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
           return icons[hash % icons.length];
         },
 
@@ -2940,13 +2948,18 @@
 
         // 判断插件安装状态：'installed' | 'updatable' | 'not-installed'
         getPluginInstallStatus(marketPlugin) {
+          if (!marketPlugin) return 'not-installed';
+
           // 用商店插件的 id 或 name 来匹配已安装插件
           // 优先通过 storeId（安装时记录的商店 ID）匹配，再 fallback 到 name/internalId/fileId
           const pluginId = marketPlugin.id || marketPlugin.name;
+          if (!pluginId) return 'not-installed';
+
           const installed = this.installedPlugins.find(p =>
             p.storeId === pluginId || p.name === pluginId || p.internalId === pluginId || p.fileId === pluginId
           );
           if (!installed) return 'not-installed';
+
           // 有版本信息时做对比
           if (marketPlugin.version && installed.currentVersion) {
             return this.compareVersions(marketPlugin.version, installed.currentVersion) > 0
