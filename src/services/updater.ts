@@ -558,7 +558,7 @@ async function cachePluginIcon(pluginId: string, candidates: Array<string | unde
     }
 
     for (const owner of owners) {
-        const avatarUrl = `https://github.com/${owner}.png?size=128`;
+        const avatarUrl = `https://github.com/${owner}.png`;
         try {
             const res = await fetch(avatarUrl, {
                 headers: { 'User-Agent': 'napcat-plugin-update-checker' },

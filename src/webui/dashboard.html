@@ -492,6 +492,47 @@
     .star-pulse {
       animation: starPulse 2s ease-in-out infinite;
     }
+
+    /* 插件市场图标加载后边框 */
+    .market-icon-frame {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      background: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .market-icon-frame.is-loaded {
+      padding: 2px;
+      background: #d1d5db;
+    }
+
+    .market-icon-frame--card {
+      border-radius: 9999px;
+    }
+
+    .market-icon-frame--detail {
+      border-radius: 12px;
+    }
+
+    .market-icon-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+    }
+
+    .market-icon-frame--detail.is-loaded .market-icon-inner {
+      border-radius: 10px;
+    }
+
+    .market-icon-frame.is-loaded .market-icon-inner {
+      background: #ffffff;
+    }
   </style>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -1039,11 +1080,19 @@
               <div class="p-4 flex flex-col flex-1">
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      class="w-12 h-12 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                        @error="$event.target.style.display='none'">
-                      <span x-else x-text="getPluginIcon(plugin.name || plugin.id)"></span>
+                    <div class="w-12 h-12 flex-shrink-0">
+                      <div class="market-icon-frame market-icon-frame--card"
+                        :class="{ 'is-loaded': isMarketPluginIconLoaded(plugin) }">
+                        <div class="market-icon-inner">
+                          <template x-if="getMarketPluginIconUrl(plugin)">
+                            <img :src="getMarketPluginIconUrl(plugin)" alt="Plugin icon" class="w-full h-full object-cover"
+                              x-show="isMarketPluginIconLoaded(plugin)"
+                              @load="markMarketPluginIconLoaded(plugin, $event.target.currentSrc || $event.target.src)"
+                              @error="markMarketPluginIconFailed(plugin, $event.target.currentSrc || $event.target.src)">
+                          </template>
+                          <span x-show="!isMarketPluginIconLoaded(plugin)" x-text="getPluginIcon(plugin.name || plugin.id)"></span>
+                        </div>
+                      </div>
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
@@ -1280,11 +1329,21 @@
             <!-- 头部 -->
             <div class="flex items-center justify-between mb-6">
               <div class="flex items-center gap-4">
-                <div
-                  class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl overflow-hidden flex-shrink-0 bg-[var(--border-light)]">
-                  <img x-if="selectedPlugin?.icon" :src="selectedPlugin?.icon" alt="Plugin icon"
-                    class="w-full h-full object-cover" @error="$event.target.style.display='none'">
-                  <span x-else x-text="getPluginIcon(selectedPlugin?.name || selectedPlugin?.id)"></span>
+                <div class="w-14 h-14 flex-shrink-0 text-2xl">
+                  <div class="market-icon-frame market-icon-frame--detail"
+                    :class="{ 'is-loaded': isMarketPluginIconLoaded(selectedPlugin) }">
+                    <div class="market-icon-inner">
+                      <template x-if="getMarketPluginIconUrl(selectedPlugin)">
+                        <img :src="getMarketPluginIconUrl(selectedPlugin)" alt="Plugin icon"
+                          class="w-full h-full object-cover"
+                          x-show="isMarketPluginIconLoaded(selectedPlugin)"
+                          @load="markMarketPluginIconLoaded(selectedPlugin, $event.target.currentSrc || $event.target.src)"
+                          @error="markMarketPluginIconFailed(selectedPlugin, $event.target.currentSrc || $event.target.src)">
+                      </template>
+                      <span x-show="!isMarketPluginIconLoaded(selectedPlugin)"
+                        x-text="getPluginIcon(selectedPlugin?.name || selectedPlugin?.id)"></span>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <h3 class="font-bold text-xl" style="color: var(--text)">
@@ -1821,9 +1880,11 @@
                   <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                        @error="$event.target.style.display='none'">
-                      <span x-else x-text="getPluginIcon(plugin.name)"></span>
+                      <template x-if="plugin.icon">
+                        <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                          @error="$event.target.style.display='none'">
+                      </template>
+                      <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
@@ -1955,9 +2016,11 @@
                   <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                      <img x-if="plugin.icon" :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                        @error="$event.target.style.display='none'">
-                      <span x-else x-text="getPluginIcon(plugin.name)"></span>
+                      <template x-if="plugin.icon">
+                        <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                          @error="$event.target.style.display='none'">
+                      </template>
+                      <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
@@ -2144,6 +2207,8 @@
         sortDropdownOpen: false,
         editingSourceIndex: null,
         installingPlugins: {}, // 记录正在安装的插件状态
+        marketIconLoadFailedMap: {}, // 商店图标加载失败记录（用于回退 emoji）
+        marketIconLoadedMap: {}, // 商店图标已成功加载记录（用于先 emoji 后替换图片）
 
         // 插件详情相关
         showPluginDetailModal: false,
@@ -2331,6 +2396,122 @@
             return plugin.downloadCount;
           }
           return plugin.downloads || 0;
+        },
+
+        // 查找对应的已安装插件 (复用缓存图标)
+        findInstalledPluginForMarket(plugin) {
+          if (!plugin) return null;
+          const pluginId = plugin.id || plugin.name;
+          return this.installedPlugins.find(p =>
+            p.storeId === pluginId || p.name === pluginId || p.internalId === pluginId || p.fileId === pluginId
+          ) || null;
+        },
+
+        extractGithubOwnerFromUrl(rawUrl) {
+          if (!rawUrl) return '';
+          try {
+            const url = new URL(String(rawUrl).trim());
+            if (url.hostname !== 'github.com' && url.hostname !== 'www.github.com' && url.hostname !== 'raw.githubusercontent.com') {
+              return '';
+            }
+
+            const parts = url.pathname.split('/').filter(Boolean);
+            // github.com/{owner}/{repo}
+            // raw.githubusercontent.com/{owner}/{repo}/...
+            return parts[0] || '';
+          } catch {
+            return '';
+          }
+        },
+
+        getOnlineMarketIconUrl(plugin) {
+          if (!plugin) return '';
+
+          // 尝试从 homepage / downloadUrl 推断 GitHub 头像
+          const repositoryUrl = typeof plugin.repository === 'string'
+            ? plugin.repository
+            : (plugin.repository && plugin.repository.url) ? plugin.repository.url : '';
+
+          const candidates = [plugin.homepage, repositoryUrl, plugin.downloadUrl];
+          for (const candidate of candidates) {
+            const owner = this.extractGithubOwnerFromUrl(candidate);
+            if (owner) return `https://github.com/${owner}.png`;
+          }
+
+          return '';
+        },
+
+        resolveMarketPluginIconUrl(plugin) {
+          if (!plugin) return '';
+
+          // 本地缓存图标（已安装插件）
+          const installed = this.findInstalledPluginForMarket(plugin);
+          if (installed && installed.icon) return installed.icon;
+
+          // 在线图标
+          return this.getOnlineMarketIconUrl(plugin);
+        },
+
+        getMarketPluginIconFailKey(plugin, resolvedUrl = '') {
+          if (!plugin) return '';
+          const id = plugin.id || plugin.name || '';
+          const source = plugin.source || '';
+          const url = resolvedUrl || this.resolveMarketPluginIconUrl(plugin) || '';
+          return `${source}::${id}::${url}`;
+        },
+
+        getMarketPluginIconLoadedKey(plugin, resolvedUrl = '') {
+          if (!plugin) return '';
+          const id = plugin.id || plugin.name || '';
+          const source = plugin.source || '';
+          const url = resolvedUrl || this.resolveMarketPluginIconUrl(plugin) || '';
+          return `${source}::${id}::${url}`;
+        },
+
+        markMarketPluginIconLoaded(plugin, loadedUrl = '') {
+          const key = this.getMarketPluginIconLoadedKey(plugin, loadedUrl);
+          if (!key) return;
+          this.marketIconLoadedMap = {
+            ...this.marketIconLoadedMap,
+            [key]: true
+          };
+        },
+
+        markMarketPluginIconFailed(plugin, failedUrl = '') {
+          const failKey = this.getMarketPluginIconFailKey(plugin, failedUrl);
+          if (failKey) {
+            this.marketIconLoadFailedMap = {
+              ...this.marketIconLoadFailedMap,
+              [failKey]: true
+            };
+          }
+
+          const loadedKey = this.getMarketPluginIconLoadedKey(plugin, failedUrl);
+          if (loadedKey && this.marketIconLoadedMap[loadedKey]) {
+            const nextLoadedMap = { ...this.marketIconLoadedMap };
+            delete nextLoadedMap[loadedKey];
+            this.marketIconLoadedMap = nextLoadedMap;
+          }
+        },
+
+        getMarketPluginIconUrl(plugin) {
+          if (!plugin) return '';
+          const resolvedUrl = this.resolveMarketPluginIconUrl(plugin);
+          if (!resolvedUrl) return '';
+
+          const key = this.getMarketPluginIconFailKey(plugin, resolvedUrl);
+          if (key && this.marketIconLoadFailedMap[key]) return '';
+
+          return resolvedUrl;
+        },
+
+        // 判断商店图标加载（未加载显示 emoji）
+        isMarketPluginIconLoaded(plugin) {
+          const resolvedUrl = this.getMarketPluginIconUrl(plugin);
+          if (!resolvedUrl) return false;
+
+          const key = this.getMarketPluginIconLoadedKey(plugin, resolvedUrl);
+          return Boolean(key && this.marketIconLoadedMap[key]);
         },
 
         // 插件图标生成
