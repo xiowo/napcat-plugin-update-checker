@@ -754,7 +754,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                         await pm.loadPluginById(pluginId);
                     }
                 } catch (e) {
-                    ctx.logger.warn(`加载插件 ${pluginId} 失败（可能需要重启）:`, e);
+                    ctx.logger.warn(`加载插件 ${pluginId} 失败:`, e);
                 }
 
                 ctx.logger.info(`从文件夹导入插件成功: ${pluginId}`);
@@ -820,7 +820,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                         await pm.loadPluginById(pluginId);
                     }
                 } catch (e) {
-                    ctx.logger.warn(`加载插件 ${pluginId} 失败（可能需要重启）:`, e);
+                    ctx.logger.warn(`加载插件 ${pluginId} 失败:`, e);
                 }
 
                 ctx.logger.info(`从 zip 导入插件成功: ${pluginId}`);

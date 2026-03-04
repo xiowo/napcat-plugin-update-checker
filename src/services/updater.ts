@@ -711,7 +711,7 @@ export async function installPluginWithResult(update: UpdateInfo): Promise<Insta
             try {
                 await pm.loadPluginById(pluginName);
             } catch (e) {
-                pluginState.logger.warn(`加载插件失败: ${e}，可能需要手动重启`);
+                pluginState.logger.warn(`加载插件失败: ${e}`);
             }
         }
 
