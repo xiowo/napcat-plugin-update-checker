@@ -970,7 +970,7 @@
               style="min-height: 44px;">
               <h4 class="font-medium text-sm select-none" style="color: var(--text)">
                 排序方式:
-                <span x-text="sortBy === 'popular' ? '热门排序' : '名称排序'"></span>
+                <span x-text="sortBy === 'json' ? '默认排序' : sortBy === 'name' ? '名称排序' : '热门排序'"></span>
               </h4>
               <svg class="w-4 h-4 transition-transform" :class="sortDropdownOpen ? 'transform rotate-180' : ''"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -979,14 +979,19 @@
             </div>
             <div x-show="sortDropdownOpen" x-transition x-cloak
               class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-[70] space-y-1">
-              <button @click="sortBy = 'popular'; sortDropdownOpen = false"
-                :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'popular' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
-                热门排序
+              <button @click="sortBy = 'json'; sortDropdownOpen = false"
+                :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'json' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                默认排序
               </button>
 
               <button @click="sortBy = 'name'; sortDropdownOpen = false"
                 :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'name' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
                 名称排序
+              </button>
+
+              <button @click="sortBy = 'popular'; sortDropdownOpen = false"
+                :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', sortBy === 'popular' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                热门排序
               </button>
             </div>
           </div>
@@ -2213,7 +2218,7 @@
         installStatusDropdownOpen: false,
         selectedSource: 'all',
         sourceDropdownOpen: false,
-        sortBy: 'popular',
+        sortBy: 'json',
         marketPlugins: [],
         categories: ['工具', '娱乐', '实用', '开发', '社交', '系统'],
         isLoadingPlugins: false,
@@ -2383,6 +2388,14 @@
 
           // 应用排序
           switch (this.sortBy) {
+            case 'name':
+              plugins.sort((a, b) => {
+                const nameA = (a.displayName || a.name || '').toLowerCase();
+                const nameB = (b.displayName || b.name || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+              });
+              break;
+
             case 'popular':
               plugins.sort((a, b) => {
                 const downloadsA = this.getPluginDownloads(a);
@@ -2391,12 +2404,9 @@
               });
               break;
 
-            case 'name':
-              plugins.sort((a, b) => {
-                const nameA = (a.displayName || a.name || '').toLowerCase();
-                const nameB = (b.displayName || b.name || '').toLowerCase();
-                return nameA.localeCompare(nameB);
-              });
+            case 'json':
+            default:
+              // 默认排序：保持各源 JSON 中的原始顺序
               break;
           }
 
