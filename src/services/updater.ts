@@ -74,9 +74,17 @@ interface StorePlugin {
     name: string;
     version: string;
     downloadUrl: string;
+    downloads?: number;
     description?: string;
     author?: string;
     source?: string;
+}
+
+interface StoreStatsItem {
+    version?: string;
+    updateTime?: string;
+    downloadUrl?: string;
+    downloads?: number;
 }
 
 export interface InstallPluginResult {
@@ -149,6 +157,43 @@ function getInstalledFromManager(): PluginInfo[] {
     return plugins;
 }
 
+function resolveRelativeUrl(url: string, base: string): string {
+    try {
+        return new URL(url, base).toString();
+    } catch {
+        return url;
+    }
+}
+
+async function fetchJsonByMirrors(
+    sourceUrl: string,
+    mirrors: string[],
+    preferredMirror?: string
+): Promise<any | null> {
+    const orderedMirrors = preferredMirror
+        ? [preferredMirror, ...mirrors.filter(m => m !== preferredMirror)]
+        : mirrors;
+
+    for (const mirror of orderedMirrors) {
+        try {
+            const isDirect = !mirror || mirror === 'direct' || mirror === 'https://raw.githubusercontent.com';
+            const baseUrl = isDirect ? sourceUrl : `${mirror}${sourceUrl}`;
+            const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
+            const res = await fetch(url, {
+                headers: { 'User-Agent': 'NapCat-WebUI', 'Cache-Control': 'no-cache' },
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return await res.json();
+        } catch (e) {
+            pluginState.logger.debug(`拉取 JSON 失败（${mirror || 'direct'}）: ${getErrorMessage(e)}`);
+        }
+    }
+
+    return null;
+}
+
 /** 从商店索引获取数据（按源分别返回，不做跨源合并） */
 async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StorePlugin>>> {
     const selected = pluginState.config.selectedRawMirror;
@@ -201,14 +246,36 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
                 const data = await res.json() as any;
                 const plugins = Array.isArray(data?.plugins) ? data.plugins : [];
 
+                // 版本/下载链接/下载数可从 statsUrl 获取
+                const statsRawUrl = typeof data?.statsUrl === 'string' ? data.statsUrl.trim() : '';
+                let statsObj: Record<string, StoreStatsItem> = {};
+                if (statsRawUrl) {
+                    const statsUrl = resolveRelativeUrl(statsRawUrl, source);
+                    const statsData = await fetchJsonByMirrors(statsUrl, mirrors, mirror);
+                    if (statsData && typeof statsData === 'object') {
+                        statsObj = statsData as Record<string, StoreStatsItem>;
+                    } else {
+                        pluginState.logger.debug(`源 ${sourceKey} 的 statsUrl 返回为空或格式不正确: ${statsUrl}`);
+                    }
+                }
+
                 const map = new Map<string, StorePlugin>();
                 for (const p of plugins) {
-                    if (p?.id && p?.version && p?.downloadUrl) {
+                    if (!p?.id) continue;
+
+                    const stat = statsObj[p.id] || {};
+                    const version = stat.version || p.version;
+                    const downloadUrl = stat.downloadUrl || p.downloadUrl;
+                    const downloads = Number(stat.downloads);
+                    const normalizedDownloads = Number.isFinite(downloads) ? downloads : 0;
+
+                    if (version && downloadUrl) {
                         map.set(p.id, {
                             id: p.id,
                             name: p.name || p.id,
-                            version: p.version,
-                            downloadUrl: p.downloadUrl,
+                            version,
+                            downloadUrl,
+                            downloads: normalizedDownloads,
                             description: p.description,
                             author: p.author,
                             source: sourceKey,

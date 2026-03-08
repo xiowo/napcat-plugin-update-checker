@@ -1451,7 +1451,7 @@
                 </div>
                 <div class="flex flex-col">
                   <span class="text-slate-500 text-xs">更新时间</span>
-                  <span class="font-medium text-xs" x-text="formatDate(githubRepoInfo?.published_at) || '-'"></span>
+                  <span class="font-medium text-xs" x-text="formatDate(selectedPlugin?.updateTime) || '-'"></span>
                 </div>
               </div>
             </div>
@@ -2413,13 +2413,10 @@
           return plugins;
         },
 
-        // 获取插件下载量（优先使用仓库提供的 downloadCount）
+        // 获取插件下载量
         getPluginDownloads(plugin) {
           if (!plugin) return 0;
-          if (plugin.downloadCount !== undefined) {
-            return plugin.downloadCount;
-          }
-          return plugin.downloads || 0;
+          return Number(plugin.downloads) || 0;
         },
 
         // 查找对应的已安装插件 (复用缓存图标)
@@ -2565,8 +2562,26 @@
         // 格式化日期
         formatDate(dateStr) {
           if (!dateStr) return '';
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+          const raw = String(dateStr).trim();
+
+          const isUtc =
+            /z$/i.test(raw) ||
+            /\butc\b/i.test(raw) ||
+            /[+-]00:00$/.test(raw) ||
+            /[+-]0000$/.test(raw) ||
+            /[+-]00$/.test(raw);
+
+          if (!isUtc) return raw;
+
+          const date = new Date(raw);
+          if (Number.isNaN(date.getTime())) return raw;
+
+          return new Intl.DateTimeFormat('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).format(date);
         },
 
         // 格式化文件大小
@@ -2818,44 +2833,41 @@
                 const data = await response.json();
                 const plugins = Array.isArray(data) ? data : data.plugins || [];
 
-                const isGithubRawSource = (() => {
+                let statsData = {};
+                const statsUrlRaw = typeof data?.statsUrl === 'string' ? data.statsUrl.trim() : '';
+                if (statsUrlRaw) {
                   try {
-                    const sourceUrl = new URL(source.url);
-                    if (sourceUrl.hostname !== 'raw.githubusercontent.com') return false;
-                    const parts = sourceUrl.pathname.split('/').filter(Boolean);
-                    return parts.length >= 6 && parts[2] === 'refs' && parts[3] === 'heads';
-                  } catch {
-                    return false;
-                  }
-                })();
-
-                if (isGithubRawSource) {
-                  try {
-                    const sourceUrl = new URL(source.url);
-                    const parts = sourceUrl.pathname.split('/').filter(Boolean);
-                    const owner = parts[0];
-                    const repo = parts[1];
-                    const downloadsUrl = `${sourceUrl.protocol}//${sourceUrl.host}/${owner}/${repo}/refs/heads/store/downloads.json`;
-
-                    const dres = await fetch(downloadsUrl);
-                    if (dres.ok) {
-                      const downloadsData = await dres.json();
-                      if (downloadsData && typeof downloadsData === 'object') {
-                        for (const p of plugins) {
-                          const id = p.id || p.name;
-                          if (id && downloadsData[id] !== undefined) {
-                            p.downloadCount = Number(downloadsData[id]) || 0;
-                          }
-                        }
+                    const statsUrl = new URL(statsUrlRaw, source.url).toString();
+                    const statsRes = await fetch(statsUrl);
+                    if (statsRes.ok) {
+                      const statsJson = await statsRes.json();
+                      if (statsJson && typeof statsJson === 'object') {
+                        statsData = statsJson;
                       }
                     }
                   } catch (er) {
-                    console.debug(`拉取 ${source.name} GitHub 下载数据失败`, er);
+                    console.debug(`拉取 ${source.name} statsUrl 失败`, er);
                   }
                 }
 
-                // 添加源信息到插件
+                // 合并 stats 数据并附加来源
                 plugins.forEach(plugin => {
+                  const pluginId = plugin.id || plugin.name;
+                  const stat = pluginId ? statsData[pluginId] : null;
+
+                  if (stat && typeof stat === 'object') {
+                    if (stat.version) plugin.version = stat.version;
+                    if (stat.downloadUrl) plugin.downloadUrl = stat.downloadUrl;
+                    if (stat.updateTime) plugin.updateTime = stat.updateTime;
+                    if (stat.downloads !== undefined) {
+                      plugin.downloads = Number(stat.downloads) || 0;
+                    }
+                  }
+
+                  if (plugin.downloads === undefined) {
+                    plugin.downloads = 0;
+                  }
+
                   plugin.source = source.name;
                   allPlugins.push(plugin);
                 });
