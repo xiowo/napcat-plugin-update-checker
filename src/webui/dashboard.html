@@ -2326,6 +2326,10 @@
 
         <div class="card p-2">
           <div class="flex items-center gap-2 overflow-x-auto">
+            <button @click="pluginUpdateSettingsTab = 'pluginSettings'"
+              :class="['px-4 py-2 rounded-lg text-sm whitespace-nowrap', pluginUpdateSettingsTab === 'pluginSettings' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              插件设置
+            </button>
             <button @click="pluginUpdateSettingsTab = 'autoUpdate'"
               :class="['px-4 py-2 rounded-lg text-sm whitespace-nowrap', pluginUpdateSettingsTab === 'autoUpdate' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
               自动更新插件
@@ -2334,6 +2338,56 @@
               :class="['px-4 py-2 rounded-lg text-sm whitespace-nowrap', pluginUpdateSettingsTab === 'ignored' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
               黑名单插件管理
             </button>
+          </div>
+        </div>
+
+        <div x-show="pluginUpdateSettingsTab === 'pluginSettings'" x-transition.opacity class="space-y-4">
+          <div class="card p-4 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold" style="color: var(--text)">已安装插件</h3>
+              <p class="text-xs" style="color: var(--text-secondary)">展示插件来源与更新策略，可快速切换商店源</p>
+            </div>
+            <div class="text-xs sm:text-sm" style="color: var(--text-secondary)">
+              共 <span x-text="installedPlugins.length"></span> 个插件
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="plugin in installedPlugins" :key="plugin.name">
+              <div class="card p-4 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-[var(--primary-light)]">
+                      <img x-show="getPluginIconUrl(plugin.name) && !plugin.__iconLoadFailed"
+                        :src="getPluginIconUrl(plugin.name)" alt="icon" class="w-full h-full object-cover"
+                        @error="plugin.__iconLoadFailed = true">
+                      <span x-show="!getPluginIconUrl(plugin.name) || plugin.__iconLoadFailed"
+                        x-text="getPluginIcon(plugin.name)"></span>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="font-semibold truncate" x-text="plugin.displayName || plugin.name"></div>
+                      <div class="text-xs text-slate-500 truncate" x-text="plugin.currentVersion || '-'"></div>
+                    </div>
+                  </div>
+                  <button @click="openPluginSourceEdit(plugin)" class="btn btn-secondary text-xs whitespace-nowrap"
+                    :disabled="getInstalledPluginSourceOptions(plugin).length === 0">
+                    编辑
+                  </button>
+                </div>
+
+                <div class="text-xs space-y-1.5" style="color: var(--text-secondary)">
+                  <div>商店源：<span style="color: var(--text)" x-text="getInstalledPluginCurrentSource(plugin)"></span></div>
+                  <div>自动更新：
+                    <span style="color: var(--text)"
+                      x-text="config.autoUpdatePlugins.includes(plugin.name) ? '是' : '否'"></span>
+                  </div>
+                  <div>黑名单：
+                    <span style="color: var(--text)"
+                      x-text="config.ignoredPlugins.includes(plugin.name) ? '是' : '否'"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -2360,10 +2414,11 @@
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                       <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-blue-50 flex-shrink-0">
-                        <template x-if="getPluginIconUrl(pluginName)">
-                          <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
-                        </template>
-                        <span x-else>🔌</span>
+                        <img x-show="getPluginIconUrl(pluginName) && !getPluginInfo(pluginName).__iconLoadFailed"
+                          x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full"
+                          @error="getPluginInfo(pluginName).__iconLoadFailed = true">
+                        <span x-show="!getPluginIconUrl(pluginName) || getPluginInfo(pluginName).__iconLoadFailed"
+                          x-text="getPluginIcon(pluginName)"></span>
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
@@ -2422,11 +2477,11 @@
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                       <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                        <template x-if="plugin.icon">
-                          <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                            @error="$event.target.style.display='none'">
-                        </template>
-                        <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
+                        <img x-show="getPluginIconUrl(plugin.name) && !plugin.__iconLoadFailed"
+                          :src="getPluginIconUrl(plugin.name)" alt="Plugin icon" class="w-full h-full object-cover"
+                          @error="plugin.__iconLoadFailed = true">
+                        <span x-show="!getPluginIconUrl(plugin.name) || plugin.__iconLoadFailed"
+                          x-text="getPluginIcon(plugin.name)"></span>
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
@@ -2477,10 +2532,11 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                       <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-red-50 flex-shrink-0">
-                        <template x-if="getPluginIconUrl(pluginName)">
-                          <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
-                        </template>
-                        <span x-else>🚫</span>
+                        <img x-show="getPluginIconUrl(pluginName) && !getPluginInfo(pluginName).__iconLoadFailed"
+                          x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full"
+                          @error="getPluginInfo(pluginName).__iconLoadFailed = true">
+                        <span x-show="!getPluginIconUrl(pluginName) || getPluginInfo(pluginName).__iconLoadFailed"
+                          x-text="getPluginIcon(pluginName)"></span>
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
@@ -2539,11 +2595,11 @@
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                       <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                        <template x-if="plugin.icon">
-                          <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                            @error="$event.target.style.display='none'">
-                        </template>
-                        <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
+                        <img x-show="getPluginIconUrl(plugin.name) && !plugin.__iconLoadFailed"
+                          :src="getPluginIconUrl(plugin.name)" alt="Plugin icon" class="w-full h-full object-cover"
+                          @error="plugin.__iconLoadFailed = true">
+                        <span x-show="!getPluginIconUrl(plugin.name) || plugin.__iconLoadFailed"
+                          x-text="getPluginIcon(plugin.name)"></span>
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
@@ -2567,6 +2623,55 @@
                 </div>
               </div>
             </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- 插件商店源编辑二级页 -->
+      <div x-show="showPluginSourceEditModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 sm:p-4">
+        <div class="modal-panel max-w-xl p-4 sm:p-6 animate-fade-in">
+          <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+            <div>
+              <h3 class="font-bold text-lg" style="color: var(--text)">编辑插件商店源</h3>
+              <p class="text-xs mt-1" style="color: var(--text-secondary)"
+                x-text="pluginSourceEditTarget ? ('插件：' + (pluginSourceEditTarget.displayName || pluginSourceEditTarget.name)) : ''"></p>
+            </div>
+            <button @click="closePluginSourceEdit()" class="btn btn-secondary text-sm shrink-0">关闭</button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm mb-2" style="color: var(--text-secondary)">可选商店源</label>
+              <template x-if="pluginSourceEditOptions.length === 0">
+                <div class="text-sm p-3 rounded-lg border border-dashed" style="color: var(--text-secondary); border-color: var(--border);">
+                  当前插件在已加载的商店源中没有找到可切换的来源
+                </div>
+              </template>
+              <div class="space-y-2" x-show="pluginSourceEditOptions.length > 0">
+                <template x-for="item in pluginSourceEditOptions" :key="(item.id || item.name) + '-' + item.source">
+                  <label
+                    class="w-full text-left px-4 py-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all"
+                    :class="pluginSourceEditValue === item.source ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]'">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                      <input type="radio" :value="item.source" x-model="pluginSourceEditValue"
+                        class="w-4 h-4 text-[var(--primary)] focus:ring-[var(--primary)] border-[var(--border)]">
+                      <div class="min-w-0">
+                        <div class="text-sm font-medium truncate" style="color: var(--text)" x-text="item.source"></div>
+                        <div class="text-xs truncate" style="color: var(--text-secondary)"
+                          x-text="'版本：' + (item.version || '-')"></div>
+                      </div>
+                    </div>
+                  </label>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <button @click="closePluginSourceEdit()" class="btn btn-secondary text-sm">取消</button>
+            <button @click="savePluginSourceEdit()" class="btn btn-primary text-sm"
+              :disabled="pluginSourceEditOptions.length === 0 || !pluginSourceEditValue">保存并切换</button>
           </div>
         </div>
       </div>
@@ -2774,7 +2879,7 @@
         // 筛选器状态
         autoUpdateFilter: 'all',
         ignoredFilter: 'all',
-        pluginUpdateSettingsTab: 'autoUpdate',
+        pluginUpdateSettingsTab: 'pluginSettings',
 
         // 插件市场相关
         pluginSources: [],
@@ -2816,6 +2921,10 @@
         },
         showGitProviderModal: false,
         showPluginUpdateSettingsModal: false,
+        showPluginSourceEditModal: false,
+        pluginSourceEditTarget: null,
+        pluginSourceEditValue: '',
+        pluginSourceEditOptions: [],
         showGitApiConfigModal: false,
         showGitPushModal: false,
         showGitRepoModal: false,
@@ -3044,15 +3153,7 @@
           return Number(plugin.downloads) || 0;
         },
 
-        // 查找对应的已安装插件 (复用缓存图标)
-        findInstalledPluginForMarket(plugin) {
-          if (!plugin) return null;
-          const pluginId = plugin.id || plugin.name;
-          return this.installedPlugins.find(p =>
-            p.storeId === pluginId || p.name === pluginId || p.internalId === pluginId || p.fileId === pluginId
-          ) || null;
-        },
-
+        // 查找对应的已安装插件
         extractGithubOwnerFromUrl(rawUrl) {
           if (!rawUrl) return '';
           try {
@@ -3089,12 +3190,7 @@
 
         resolveMarketPluginIconUrl(plugin) {
           if (!plugin) return '';
-
-          // 本地缓存图标（已安装插件）
-          const installed = this.findInstalledPluginForMarket(plugin);
-          if (installed && installed.icon) return installed.icon;
-
-          // 在线图标
+          // 商店列表仅使用线上图标，不使用已安装插件缓存图标
           return this.getOnlineMarketIconUrl(plugin);
         },
 
@@ -4581,10 +4677,23 @@
           return pluginInfo.author || '';
         },
 
+        buildAuthedAssetUrl(url) {
+          if (!url) return '';
+          try {
+            const token = getToken();
+            if (!token) return url;
+            const assetUrl = new URL(url, window.location.origin);
+            assetUrl.searchParams.set('webui_token', token);
+            return assetUrl.pathname + assetUrl.search;
+          } catch (e) {
+            return url;
+          }
+        },
+
         // 获取插件图标
         getPluginIconUrl(pluginName) {
           const pluginInfo = this.getPluginInfo(pluginName);
-          return pluginInfo.icon || '';
+          return this.buildAuthedAssetUrl(pluginInfo.icon || '');
         },
 
         // 获取插件描述
@@ -4597,6 +4706,85 @@
         getPluginVersion(pluginName) {
           const pluginInfo = this.getPluginInfo(pluginName);
           return pluginInfo.currentVersion || '';
+        },
+
+        getInstalledPluginSourceOptions(installedPlugin) {
+          if (!installedPlugin) return [];
+          const idCandidates = [
+            installedPlugin.storeId,
+            installedPlugin.name,
+            installedPlugin.internalId,
+            installedPlugin.fileId
+          ].filter(Boolean);
+
+          const options = this.marketPlugins.filter(item => {
+            const marketId = item.id || item.name;
+            return idCandidates.includes(marketId) || marketId === installedPlugin.name;
+          });
+
+          const dedup = {};
+          for (const item of options) {
+            if (!item.source) continue;
+            if (!dedup[item.source]) dedup[item.source] = item;
+          }
+          return Object.values(dedup);
+        },
+
+        getInstalledPluginCurrentSource(installedPlugin) {
+          if (!installedPlugin) return '-';
+          if (installedPlugin.source) return installedPlugin.source;
+          const options = this.getInstalledPluginSourceOptions(installedPlugin);
+          if (options.length > 0) return options[0].source || '-';
+          return '-';
+        },
+
+        openPluginSourceEdit(installedPlugin) {
+          this.pluginSourceEditTarget = installedPlugin;
+          this.pluginSourceEditOptions = this.getInstalledPluginSourceOptions(installedPlugin);
+          this.pluginSourceEditValue = this.getInstalledPluginCurrentSource(installedPlugin);
+          if (this.pluginSourceEditOptions.length > 0 && !this.pluginSourceEditOptions.find(v => v.source === this.pluginSourceEditValue)) {
+            this.pluginSourceEditValue = this.pluginSourceEditOptions[0].source;
+          }
+          this.showPluginSourceEditModal = true;
+        },
+
+        closePluginSourceEdit() {
+          this.showPluginSourceEditModal = false;
+          this.pluginSourceEditTarget = null;
+          this.pluginSourceEditValue = '';
+          this.pluginSourceEditOptions = [];
+        },
+
+        async savePluginSourceEdit() {
+          if (!this.pluginSourceEditTarget || !this.pluginSourceEditValue) return;
+          const selected = this.pluginSourceEditOptions.find(item => item.source === this.pluginSourceEditValue);
+          if (!selected || !selected.downloadUrl) {
+            showToast('该来源缺少下载地址，无法切换', 'error');
+            return;
+          }
+
+          let mirror = '';
+          if (this.config.selectedDownloadMirror && this.config.selectedDownloadMirror !== 'direct') {
+            mirror = this.config.selectedDownloadMirror;
+          } else if (this.downloadMirrors && this.downloadMirrors.length > 0 && this.config.selectedDownloadMirror !== 'direct') {
+            mirror = this.downloadMirrors[0];
+          }
+
+          try {
+            await this.api('/install-plugin', 'POST', {
+              pluginName: selected.id || selected.name,
+              displayName: selected.displayName || selected.name,
+              version: selected.version,
+              downloadUrl: selected.downloadUrl,
+              mirror: mirror,
+              source: selected.source
+            });
+            await this.fetchInstalledPlugins();
+            showToast('商店源切换成功', 'success');
+            this.closePluginSourceEdit();
+          } catch (e) {
+            showToast('切换失败: ' + e.message, 'error');
+          }
         },
 
         // 自动更新插件管理
@@ -4656,6 +4844,14 @@
           }
 
           try {
+            // 加入黑名单时，自动取消自动更新
+            if (this.config.autoUpdatePlugins.includes(name)) {
+              const autoIndex = this.config.autoUpdatePlugins.indexOf(name);
+              if (autoIndex > -1) {
+                await this.api('/auto-update-plugins/' + autoIndex, 'DELETE');
+              }
+            }
+
             await this.api('/ignored-plugins', 'POST', { pluginName: name });
             this.newIgnoredPluginName = '';
             await this.fetchStatus();
@@ -4709,6 +4905,14 @@
         async toggleIgnoredPlugin(pluginName, enabled) {
           try {
             if (enabled) {
+              // 添加到黑名单前，自动取消自动更新
+              if (this.config.autoUpdatePlugins.includes(pluginName)) {
+                const autoIndex = this.config.autoUpdatePlugins.indexOf(pluginName);
+                if (autoIndex > -1) {
+                  await this.api('/auto-update-plugins/' + autoIndex, 'DELETE');
+                }
+              }
+
               // 添加到黑名单
               await this.api('/ignored-plugins', 'POST', { pluginName });
             } else {

@@ -4,6 +4,7 @@
   "version": "1.0.4",
   "type": "module",
   "main": "index.mjs",
+  "icon": "icon.png",
   "description": "一个支持添加第三方插件源的插件更新检测工具，定时检查已安装插件更新，可设置提醒或自动更新。",
   "author": "MortalCat",
   "license": "MIT",

@@ -220,6 +220,10 @@ function normalizePluginSourcesWithLockedName(
     return out;
 }
 
+function buildPluginIconUrl(pluginId: string): string {
+    return `/api/Plugin/Icon/${encodeURIComponent(pluginId)}`;
+}
+
 /**
  * 注册 WebUI 路由
  */
@@ -334,9 +338,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                     const pluginId = pkgName || plugin.id || plugin.fileId;
                     const folderId = String(plugin.id || plugin.fileId || '');
 
-                    const iconUrl = hasCachedPluginIcon(pluginId)
-                        ? `/plugin-icon/${encodeURIComponent(pluginId)}`
-                        : '';
+                    const iconUrl = buildPluginIconUrl(pluginId);
 
                     // 读取商店元数据，获取商店 ID 和源信息
                     let storeId = '';
@@ -394,9 +396,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 if (plugin) {
                     const pkgName = plugin.packageJson?.name;
                     const pluginId = pkgName || plugin.id || plugin.fileId;
-                    const iconUrl = hasCachedPluginIcon(pluginId)
-                        ? `/plugin-icon/${encodeURIComponent(pluginId)}`
-                        : '';
+                    const iconUrl = buildPluginIconUrl(pluginId);
 
                     res.json({
                         code: 0,
