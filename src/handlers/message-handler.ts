@@ -15,6 +15,7 @@ import type { NapCatPluginContext } from 'napcat-types/napcat-onebot/network/plu
 import { DEFAULT_CONFIG } from '../config';
 import { pluginState } from '../core/state';
 import { checkAllUpdates, installPlugin } from '../services/updater';
+import { runGitPushDebugForGroup } from '../services/git-updater';
 
 // ==================== CD 冷却管理 ====================
 
@@ -339,13 +340,6 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                 }
 
                 if (isGroupMessage(event)) setCooldown(event.group_id, '全部');
-                break;
-            }
-
-            default: {
-                if (subCommand) {
-                    await sendReply(ctx, event, `❓ 未知命令：${subCommandRaw}\n发送 "${prefix} 帮助" 查看可用命令`);
-                }
                 break;
             }
         }

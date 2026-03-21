@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Git仓库更新推送</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+      }
+
+      body {
+        font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI Emoji", sans-serif;
+        font-size: 16px;
+        color: #faf8fc;
+        background-color: #050505;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        max-width: 630px;
+        min-width: 500px;
+        width: max-content;
+        padding: 20px 15px 10px 15px;
+        background-color: #050505;
+      }
+
+      .head_box {
+        padding: 10px;
+        text-align: center;
+      }
+
+      .head_box .id_text {
+        font-weight: bold;
+        font-size: 30px;
+        text-align: left;
+      }
+
+      .data_box {
+        border-radius: 10px;
+        margin-top: -5px;
+        padding: 6px;
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .list .item {
+        display: flex;
+        align-items: center;
+        background: #17181c;
+        border-radius: 16px;
+        padding: 15px;
+        box-shadow: 0px 1px 1px 1px rgba(0, 0, 0, 0.55);
+      }
+
+      .list .item .title {
+        font-size: 16px;
+        width: 100%;
+      }
+
+      .list .item .title .text {
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+      }
+
+      .list .item .title .text .release {
+        font-size: 11px;
+        margin-left: 10px;
+        color: #bbbbbb;
+        border: 2px solid #bbbbbb;
+        border-radius: 18px;
+        padding: 3.5px 8px;
+        display: inline-block;
+      }
+
+      .list .item .title .text .icon {
+        width: 18px;
+        height: 18px;
+        margin-right: 5px;
+        border-radius: 4px;
+      }
+
+      .list .item .title .branch {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 13px;
+        margin-top: 5px;
+        color: #909195;
+      }
+
+      .branch-part {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .meta-icon {
+        width: 13px;
+        height: 13px;
+        display: inline-block;
+        flex: 0 0 13px;
+      }
+
+      .list .item .title .dec {
+        font-size: 13px;
+        color: #909195;
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        white-space: pre-wrap;
+        flex-wrap: wrap;
+      }
+
+      .list .item .title .dec span {
+        color: #faf8fc;
+      }
+
+      .list .item .title .dec .avatar {
+        display: flex;
+        align-items: center;
+        margin-right: 5px;
+      }
+
+      .list .item .title .dec .avatar img {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-left: -4px;
+        position: relative;
+        background: #e67e22;
+        object-fit: cover;
+      }
+
+      .list .item .title .dec .avatar img[src=""]::after {
+        content: attr(data-nameStart);
+        position: absolute;
+        inset: 0;
+        color: #faf8fc;
+        background: #e67e22;
+        font-family: "Verdana", "Arial";
+        text-align: center;
+        line-height: 16px;
+        font-size: 11px;
+      }
+
+      .list .item .title .dec .avatar img:first-child {
+        z-index: 1;
+      }
+
+      .list .item .title .desc {
+        font-size: 12px;
+        color: #909195;
+        margin-top: 10px;
+        line-height: 1.75;
+      }
+
+      .list .item .title .desc img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .list .item .title .desc .head {
+        font-size: 14px;
+        color: #faf8fc;
+      }
+
+      .list .item .title .desc p {
+        margin: 0.5em 0 0.8em;
+      }
+
+      .list .item .title .desc ul,
+      .list .item .title .desc ol {
+        padding-left: 16px;
+        text-indent: -2px;
+        margin: 6px 0;
+      }
+
+      .list .item .title .desc li + li {
+        margin-top: 4px;
+      }
+
+      .list .item .title .desc h1,
+      .list .item .title .desc h2,
+      .list .item .title .desc h3,
+      .list .item .title .desc h4 {
+        margin-top: 0.5em;
+        margin-bottom: 0.8em;
+        color: #faf8fc;
+      }
+
+      .list .item .title .desc a {
+        color: #90d0e4;
+        text-decoration: none;
+      }
+
+      .list .item .title .desc strong {
+        color: #faf8fc;
+      }
+
+      .list .item .title .desc em {
+        color: #d9e7ff;
+      }
+
+      .list .item .title .desc code {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #d6ecff;
+        font-family: "SFMono-Regular", Consolas, monospace;
+      }
+
+      .list .item .title .desc pre {
+        margin: 8px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #0d1015;
+        color: #eaf2ff;
+        overflow: hidden;
+        white-space: pre-wrap;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .list .item .title .desc pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+      }
+
+      .list .item .title .desc blockquote {
+        margin: 8px 0;
+        padding: 6px 10px;
+        border-left: 3px solid rgba(144, 208, 228, 0.6);
+        background: rgba(144, 208, 228, 0.08);
+        color: #d6ecff;
+      }
+
+      .list .item .title .desc hr {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        margin: 10px 0;
+      }
+
+      .list .item .title .stats {
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        margin-top: 10px;
+        padding: 5px 10px;
+        font-size: 13px;
+        color: #909195;
+        width: max-content;
+      }
+
+      .copyright {
+        font-size: 12px;
+        text-align: center;
+        color: #c3c4c4;
+        margin-top: 10px;
+      }
+
+      .copyright .version {
+        color: #d3bc8e;
+        display: inline-block;
+        padding: 0 3px;
+      }
+
+      .file-count {
+        color: #ffffff;
+      }
+
+      .additions {
+        color: #00b400;
+      }
+
+      .deletions {
+        color: #d92b2f;
+      }
+
+      .commit-prefix {
+        display: inline-block;
+        padding: 4px 7px 4px;
+        margin-right: 0;
+        border-radius: 12px 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+        text-transform: uppercase;
+        line-height: 1;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.5);
+        vertical-align: middle;
+        position: relative;
+        top: -1.8px;
+      }
+
+      .commit-prefix.has-emoji {
+        padding-left: 8px;
+      }
+
+      .prefix-feat,
+      .prefix-fix,
+      .prefix-docs,
+      .prefix-style,
+      .prefix-refactor,
+      .prefix-perf,
+      .prefix-test,
+      .prefix-build,
+      .prefix-ci,
+      .prefix-chore,
+      .prefix-revert {
+        background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 50%);
+      }
+
+      .prefix-feat { background-color: #28a745; color: white; }
+      .prefix-fix { background-color: #fd7e14; color: white; }
+      .prefix-docs { background-color: #3b82f6; color: #ffffff; }
+      .prefix-style { background-color: #a855f7; color: #ffffff; }
+      .prefix-refactor { background-color: #ff9800; color: #1f2937; }
+      .prefix-perf,
+      .prefix-pref { background-color: #dc2626; color: #ffffff; }
+      .prefix-test { background-color: #ec4899; color: #ffffff; }
+      .prefix-build { background-color: #06b6d4; color: #1f2937; }
+      .prefix-ci { background-color: #60a5fa; color: #1e3a8a; }
+      .prefix-chore { background-color: #d1d5db; color: #1f2937; }
+      .prefix-revert { background-color: #1f2937; color: #ffffff; }
+
+      .prefix-pr {
+        background-color: #9370db;
+        color: #ffffff;
+        background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 50%);
+      }
+
+      .pr-num {
+        display: inline-block;
+        margin: 2px;
+        padding: 3px 8px;
+        margin-left: 6px;
+        border-radius: 14px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #ffffff;
+        background-color: #6c5ce7;
+        border: 2px solid #5a4bd4;
+        vertical-align: middle;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="container">
+      <div class="head_box">
+        <div class="id_text">Git仓库更新推送</div>
+      </div>
+      <div class="data_box">
+        <div class="list">
+          {{itemsHtml}}
+        </div>
+      </div>
+      <div class="copyright">Generated by {{pluginName}} <span class="version">v{{pluginVersion}}</span></div>
+    </div>
+  </body>
+</html>

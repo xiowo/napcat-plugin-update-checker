@@ -29,6 +29,19 @@ export const DEFAULT_CONFIG: PluginConfig = {
     pluginSources: [
         { name: '社区插件库', url: 'https://raw.githubusercontent.com/HolyFoxTeam/napcat-plugin-community-index/refs/heads/main/plugins.v4.json', enabled: true, isBuiltIn: true }
     ],
+    // Git 更新推送
+    gitProviders: [
+        { provider: 'GitHub', token: '' },
+        { provider: 'Gitee', token: '' },
+        { provider: 'Gitcode', token: '' },
+        { provider: 'Gitea', token: '' },
+        { provider: 'CNB', token: '' },
+    ],
+    gitPushConfigs: [],
+    gitAutoFetchDefaultBranch: true,
+    gitRenderMode: 'text',
+    gitEnableSchedule: true,
+    gitCheckInterval: 30,
     // 主题配置
     themePreset: 'warm',
     themeCustomColor: '#e8b896',

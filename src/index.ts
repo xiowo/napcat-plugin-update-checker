@@ -14,9 +14,6 @@
  *   plugin_get_config         → 自定义配置读取
  *   plugin_set_config         → 自定义配置保存
  *   plugin_on_config_change   → 配置变更回调
- *
- * @author MortalCat
- * @license MIT
  */
 
 
@@ -24,10 +21,11 @@
 import type { PluginModule, PluginConfigSchema, NapCatPluginContext } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { EventType } from 'napcat-types/napcat-onebot/event/index';
 
-import { buildConfigSchema } from './config';
+import { buildConfigSchema, DEFAULT_CONFIG } from './config';
 import { pluginState } from './core/state';
 import { handleMessage } from './handlers/message-handler';
 import { startScheduler, stopScheduler } from './services/scheduler';
+import { ensureGitDefaultBranches, runGitPushDebugForConfig } from './services/git-updater';
 import {
     pingRawMirrors,
     pingDownloadMirrors,
@@ -37,7 +35,7 @@ import {
     hasCachedPluginIcon,
     getCachedPluginIconPath
 } from './services/updater';
-import type { PluginConfig, PluginSource } from './types';
+import type { PluginConfig, PluginSource, GitProviderConfig, GitPushConfig, GitProviderName } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -65,6 +63,9 @@ export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
 
         // 注册 WebUI 路由
         registerWebUIRoutes(ctx);
+
+        // 启动时补全 Git 默认分支（若未指定）
+        await ensureGitDefaultBranches();
 
         // 启动定时检查更新
         startScheduler();
@@ -123,14 +124,18 @@ export const plugin_get_config: PluginModule['plugin_get_config'] = async (ctx) 
 export const plugin_set_config: PluginModule['plugin_set_config'] = async (ctx, config) => {
     const prevEnableSchedule = pluginState.config.enableSchedule;
     const prevCheckInterval = pluginState.config.checkInterval;
+    const prevGitEnableSchedule = pluginState.config.gitEnableSchedule;
+    const prevGitCheckInterval = pluginState.config.gitCheckInterval;
 
     pluginState.replaceConfig(config as PluginConfig);
 
     if (
         prevEnableSchedule !== pluginState.config.enableSchedule ||
-        prevCheckInterval !== pluginState.config.checkInterval
+        prevCheckInterval !== pluginState.config.checkInterval ||
+        prevGitEnableSchedule !== pluginState.config.gitEnableSchedule ||
+        prevGitCheckInterval !== pluginState.config.gitCheckInterval
     ) {
-        // startScheduler 内部会先 stop 再按 enableSchedule 决定是否启动
+        // startScheduler 内部会先 stop，再按商店/Git 各自配置决定是否启动
         startScheduler();
         ctx.logger.info('检测到定时配置变更，已重建定时任务');
     }
@@ -148,14 +153,18 @@ export const plugin_on_config_change: PluginModule['plugin_on_config_change'] = 
     try {
         const prevEnableSchedule = pluginState.config.enableSchedule;
         const prevCheckInterval = pluginState.config.checkInterval;
+        const prevGitEnableSchedule = pluginState.config.gitEnableSchedule;
+        const prevGitCheckInterval = pluginState.config.gitCheckInterval;
 
         pluginState.updateConfig({ [key]: value });
 
         if (
             prevEnableSchedule !== pluginState.config.enableSchedule ||
-            prevCheckInterval !== pluginState.config.checkInterval
+            prevCheckInterval !== pluginState.config.checkInterval ||
+            prevGitEnableSchedule !== pluginState.config.gitEnableSchedule ||
+            prevGitCheckInterval !== pluginState.config.gitCheckInterval
         ) {
-            // startScheduler 内部会先 stop 再按 enableSchedule 决定是否启动
+            // startScheduler 内部会先 stop，再按商店/Git 各自配置决定是否启动
             startScheduler();
             ctx.logger.info('检测到定时配置变更，已重建定时任务');
         }
@@ -830,6 +839,98 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             res.json({ code: -1, message: '请提供 zip 文件或文件夹路径' });
         } catch (e) {
             ctx.logger.error('导入插件失败:', e);
+            res.json({ code: -1, message: String(e) });
+        }
+    });
+
+    // Git / 推送配置获取
+    base.get('/git-config', async (_req: any, res: any) => {
+        try {
+            const config = pluginState.config;
+            res.json({
+                code: 0,
+                data: {
+                    gitProviders: config.gitProviders || DEFAULT_CONFIG.gitProviders || [],
+                    gitPushConfigs: config.gitPushConfigs || [],
+                    gitAutoFetchDefaultBranch: config.gitAutoFetchDefaultBranch !== false,
+                    gitRenderMode: config.gitRenderMode || 'text',
+                    gitEnableSchedule: config.gitEnableSchedule !== false,
+                    gitCheckInterval: config.gitCheckInterval || DEFAULT_CONFIG.gitCheckInterval,
+                }
+            });
+        } catch (e) {
+            res.json({ code: -1, message: String(e) });
+        }
+    });
+
+    // Git / 推送配置保存
+    base.post('/git-config', async (req: any, res: any) => {
+        try {
+            const body = await readJsonBody(req, 'Git 配置');
+            const prevGitEnableSchedule = pluginState.config.gitEnableSchedule;
+            const prevGitCheckInterval = pluginState.config.gitCheckInterval;
+
+            if (body?.gitProviders !== undefined) pluginState.config.gitProviders = body.gitProviders;
+            if (body?.gitAutoFetchDefaultBranch !== undefined) {
+                pluginState.config.gitAutoFetchDefaultBranch = Boolean(body.gitAutoFetchDefaultBranch);
+            }
+            if (body?.gitRenderMode !== undefined) {
+                pluginState.config.gitRenderMode = body.gitRenderMode;
+            }
+            if (body?.gitEnableSchedule !== undefined) {
+                pluginState.config.gitEnableSchedule = Boolean(body.gitEnableSchedule);
+            }
+            if (body?.gitCheckInterval !== undefined) {
+                pluginState.config.gitCheckInterval = Number(body.gitCheckInterval) || DEFAULT_CONFIG.gitCheckInterval;
+            }
+
+            pluginState.saveConfig();
+
+            if (
+                prevGitEnableSchedule !== pluginState.config.gitEnableSchedule ||
+                prevGitCheckInterval !== pluginState.config.gitCheckInterval
+            ) {
+                startScheduler();
+                ctx.logger.info('检测到 Git 推送定时配置变更，已重建定时任务');
+            }
+
+            res.json({ code: 0, message: 'success' });
+        } catch (e) {
+            res.json({ code: -1, message: String(e) });
+        }
+    });
+
+    // Git 推送配置保存
+    base.post('/git-push-configs', async (req: any, res: any) => {
+        try {
+            const body = await readJsonBody(req, 'Git 推送配置');
+            if (!Array.isArray(body?.gitPushConfigs)) {
+                return res.json({ code: -1, message: 'gitPushConfigs 必须是数组' });
+            }
+            pluginState.config.gitPushConfigs = body.gitPushConfigs;
+            pluginState.saveConfig();
+            res.json({ code: 0, message: 'success' });
+        } catch (e) {
+            res.json({ code: -1, message: String(e) });
+        }
+    });
+
+    // Git 推送立即检测并推送
+    base.post('/git-push-debug', async (req: any, res: any) => {
+        try {
+            const body = await readJsonBody(req, 'Git 推送立即检测');
+            const configId = String(body?.configId || '').trim();
+            if (!configId) {
+                return res.json({ code: -1, message: 'configId 不能为空' });
+            }
+
+            const result = await runGitPushDebugForConfig(configId);
+            if (!result.ok) {
+                return res.json({ code: -1, message: result.message, data: result });
+            }
+
+            res.json({ code: 0, message: result.message, data: result });
+        } catch (e) {
             res.json({ code: -1, message: String(e) });
         }
     });

@@ -49,6 +49,18 @@ export interface PluginConfig {
     downloadMirrors?: string[];
     /** 插件市场源列表 */
     pluginSources: PluginSource[];
+    /** Git 仓库提供商配置（token/api 地址） */
+    gitProviders?: GitProviderConfig[];
+    /** Git 更新推送配置 */
+    gitPushConfigs?: GitPushConfig[];
+    /** 启动时自动补全默认分支 */
+    gitAutoFetchDefaultBranch?: boolean;
+    /** 推送渲染模式（text/render） */
+    gitRenderMode?: GitPushRenderMode;
+    /** Git 推送自动检查开关（独立于插件商店更新检测） */
+    gitEnableSchedule?: boolean;
+    /** Git 推送自动检查间隔（分钟，独立于插件商店更新检测） */
+    gitCheckInterval?: number;
     /** 彩蛋配置：是否启用自定义合并转发信息 */
     customForwardInfo?: boolean;
     /** 彩蛋配置：自定义合并转发 QQ 号（不填则使用机器人自身） */
@@ -77,6 +89,54 @@ export interface PluginSource {
 export interface GroupConfig {
     /** 是否启用此群的功能 */
     enabled?: boolean;
+}
+
+// ==================== Git 更新推送 ====================
+
+export type GitProviderName = 'GitHub' | 'Gitee' | 'Gitcode' | 'Gitea' | 'CNB';
+
+export interface GitProviderConfig {
+    provider: GitProviderName;
+    token?: string;
+    apiBase?: string;
+}
+
+export type GitPushRenderMode = 'text' | 'render';
+
+export interface GitPushRepoConfig {
+    id: string;
+    provider: GitProviderName;
+    repoUrl: string;
+    owner: string;
+    repo: string;
+    commitBranch?: string;
+    /** 是否启用 Release 检测，默认关闭 */
+    releaseEnabled?: boolean;
+    /** Release 检测分支/标识；未填写时回退到 commitBranch */
+    releaseBranch?: string;
+}
+
+export interface GitPushConfig {
+    id: string;
+    name: string;
+    enabled: boolean;
+    notifyGroups: string[];
+    notifyUsers: string[];
+    renderMode: GitPushRenderMode;
+    /** 推送列表下的仓库配置 */
+    repos?: GitPushRepoConfig[];
+    /** 兼容旧版单仓库字段 */
+    provider?: GitProviderName;
+    repoUrl?: string;
+    owner?: string;
+    repo?: string;
+    commitBranch?: string;
+    releaseBranch?: string;
+}
+
+export interface GitUpdateCache {
+    commits: Record<string, string>;
+    releases: Record<string, string>;
 }
 
 // ==================== 更新相关类型 ====================

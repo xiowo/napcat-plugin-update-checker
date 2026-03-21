@@ -85,6 +85,13 @@ function copyAssetsPlugin() {
                     console.log('[copy-assets] (o\'v\'o) 已复制 webui 目录');
                 }
 
+                // 复制 resources 目录
+                const resourcesSrc = resolve(__dirname, 'src/resources');
+                if (fs.existsSync(resourcesSrc)) {
+                    copyDirRecursive(resourcesSrc, resolve(distDir, 'resources'));
+                    console.log('[copy-assets] (o\'v\'o) 已复制 resources 目录');
+                }
+
                 console.log('[copy-assets] (*\'v\'*) 资源复制完成！');
             } catch (error) {
                 console.error('[copy-assets] (;_;) 资源复制失败:', error);

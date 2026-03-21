@@ -541,6 +541,121 @@
     .market-icon-frame.is-loaded .market-icon-inner {
       background: #ffffff;
     }
+
+    .settings-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .settings-list-item:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .settings-list-item__meta {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .settings-list-item__title {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .settings-list-item__desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .section-block {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      background: var(--card-bg);
+    }
+
+    .repo-config-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: var(--bg);
+    }
+
+    .fab-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(90, 74, 58, 0.18);
+      font-size: 28px;
+      color: #fff;
+      background: var(--primary);
+    }
+
+    .modal-panel {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .modal-header-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--card-bg);
+      margin: -16px -16px 16px;
+      padding: 16px;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .toast-container {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+        align-items: stretch;
+      }
+
+      .toast {
+        max-width: none;
+        width: 100%;
+      }
+
+      .modal-panel {
+        max-height: calc(100vh - 8px);
+        border-radius: 12px;
+      }
+
+      .modal-header-sticky {
+        margin: -12px -12px 12px;
+        padding: 12px;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+      }
+
+      .fab-btn {
+        width: 52px;
+        height: 52px;
+        font-size: 24px;
+      }
+    }
   </style>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -1568,6 +1683,410 @@
         </div>
       </div>
 
+      <!-- Git 推送配置页面 -->
+      <div x-show="currentTab === 'gitPush' && !showSecretPanel" x-transition.opacity class="max-w-5xl mx-auto">
+        <div class="card p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 class="font-bold text-lg" style="color: var(--text)">Git推送设置</h3>
+              <p class="text-sm" style="color: var(--text-secondary)">统一管理推送 API、默认分支获取和定时检查配置</p>
+            </div>
+            <button @click="showGitProviderModal = true" class="btn btn-secondary text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              打开Git推送设置
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">自动获取远程默认分支</div>
+              <div class="font-semibold" style="color: var(--text)"
+                x-text="gitAutoFetchDefaultBranch ? '已开启' : '已关闭'"></div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">自动检查定时</div>
+              <div class="font-semibold" style="color: var(--text)" x-text="gitScheduleEnabled ? '已启用' : '已禁用'"></div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">自动检查间隔</div>
+              <div class="font-semibold" style="color: var(--text)">
+                <span x-text="gitCheckInterval"></span> 分钟
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 my-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3 flex-1">
+            <div class="relative flex-1">
+              <input type="text" x-model="gitSearch" placeholder="搜索推送列表名称或仓库..." class="input w-full pl-10">
+              <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs sm:text-sm" style="color: var(--text-secondary)">
+            共 <span x-text="gitPushConfigs.length"></span> 个推送列表
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <template x-for="(push, index) in filteredGitPushConfigs" :key="push.id">
+            <div class="card p-4 sm:p-5 space-y-4 h-full min-w-0">
+              <div class="flex flex-col gap-4">
+                <div class="flex items-start justify-between gap-3 flex-1 min-w-0">
+                  <div class="flex items-start gap-3 flex-1 min-w-0">
+                    <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 overflow-hidden"
+                      style="background: var(--primary-light);">
+                      <template x-if="getGitPushGroupAvatar(push)">
+                        <img :src="getGitPushGroupAvatar(push)" alt="group avatar" class="w-full h-full object-cover">
+                      </template>
+                      <template x-if="!getGitPushGroupAvatar(push)">
+                        <span x-text="getProviderIcon(getGitPushRepos(push)[0]?.provider || 'GitHub')"></span>
+                      </template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <div class="font-bold text-base break-all" x-text="push.name"></div>
+                        <span class="text-xs px-2 py-1 rounded-full bg-[var(--border-light)] text-[var(--text-secondary)]"
+                          x-text="push.renderMode === 'render' ? '渲染推送' : '文本推送'"></span>
+                      </div>
+                      <div class="text-xs mt-1" style="color: var(--text-secondary)">
+                        列表状态：<span x-text="push.enabled ? '已启用' : '已禁用'"></span>
+                      </div>
+                      <div class="text-xs mt-1 break-all" style="color: var(--text-secondary)">
+                        推送群：<span x-text="formatTargetList(push.notifyGroups, '未设置')"></span>
+                      </div>
+                      <div class="text-xs mt-1 break-all" style="color: var(--text-secondary)">
+                        推送好友：<span x-text="formatTargetList(push.notifyUsers, '未设置')"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <label class="toggle-switch shrink-0 self-center mr-1">
+                    <input type="checkbox" :checked="push.enabled"
+                      @change="toggleGitPushEnabled(index, $event.target.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <button @click="debugGitPush(push.id)" class="btn btn-secondary text-sm">立即检测并推送</button>
+                  <button @click="editGitPush(index)" class="btn btn-secondary text-sm">编辑</button>
+                  <button @click="removeGitPush(index)" class="btn text-sm"
+                    style="background:#fee2e2;color:#991b1b;">删除</button>
+                </div>
+              </div>
+
+              <div class="repo-config-card">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium" style="color: var(--text)">推送仓库配置</div>
+                  </div>
+                  <span class="text-xs px-2 py-1 rounded-full bg-[var(--primary-light)] whitespace-nowrap shrink-0"
+                    style="color: var(--primary)">
+                    已配置 <span x-text="getGitPushRepos(push).length"></span> 个仓库
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div x-show="filteredGitPushConfigs.length === 0" class="card p-10 text-center text-sm text-slate-500 col-span-full">
+            还没有配置任何推送列表
+          </div>
+        </div>
+
+        <!-- 右下角新增按钮 -->
+        <div class="fixed bottom-6 right-6 z-40" x-show="currentTab === 'gitPush' && !showSecretPanel">
+          <button @click="openNewGitPush" class="fab-btn" title="新增推送列表">
+            +
+          </button>
+        </div>
+
+        <!-- 推送设置 -->
+        <div x-show="showGitProviderModal" x-cloak
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div class="modal-panel max-w-2xl p-4 sm:p-6 animate-fade-in">
+            <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 class="font-bold text-lg" style="color: var(--text)">Git推送设置</h3>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">管理 API 配置、默认分支获取与自动检查时间</p>
+              </div>
+              <button @click="showGitProviderModal = false" class="btn btn-secondary text-sm shrink-0">关闭</button>
+            </div>
+
+            <div class="space-y-4">
+              <button @click="showGitApiConfigModal = true" class="settings-list-item w-full text-left">
+                <div class="settings-list-item__meta">
+                  <div class="settings-list-item__title">API 配置</div>
+                  <div class="settings-list-item__desc">统一配置 GitHub / Gitee / Gitcode / Gitea / CNB 的 Token 与 API 地址</div>
+                </div>
+                <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              <div class="section-block space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="font-medium" style="color: var(--text)">自动获取远程默认分支</div>
+                    <div class="text-xs" style="color: var(--text-secondary)">未填写 Commit 分支时，自动读取远程仓库默认分支</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" x-model="gitAutoFetchDefaultBranch">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="font-medium" style="color: var(--text)">自动检查</div>
+                    <div class="text-xs" style="color: var(--text-secondary)">控制 Git 更新推送是否跟随定时任务自动执行</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" x-model="gitScheduleEnabled">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text-secondary)">自动检查定时时间（分钟）</label>
+                  <input type="number" min="1" x-model.number="gitCheckInterval" class="input w-full"
+                    placeholder="默认 30 分钟">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+              <button @click="showGitProviderModal = false" class="btn btn-secondary text-sm">取消</button>
+              <button @click="saveGitProviders" class="btn btn-primary text-sm">保存</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- API 配置二级页 -->
+        <div x-show="showGitApiConfigModal" x-cloak
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div class="modal-panel max-w-3xl p-4 sm:p-6 animate-fade-in">
+            <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 class="font-bold text-lg" style="color: var(--text)">API 配置</h3>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">输入框会显示当前提供商的默认 API 地址</p>
+              </div>
+              <button @click="showGitApiConfigModal = false" class="btn btn-secondary text-sm shrink-0">返回</button>
+            </div>
+
+            <div class="space-y-4">
+              <template x-for="provider in gitProviders" :key="provider.provider">
+                <div class="border border-[var(--border)] rounded-xl p-4 space-y-3">
+                  <div class="flex items-center gap-2 font-medium">
+                    <span x-text="getProviderIcon(provider.provider)"></span>
+                    <span x-text="provider.provider"></span>
+                  </div>
+                  <div>
+                    <label class="block text-xs mb-1 text-slate-500">访问令牌</label>
+                    <input type="password" x-model="provider.token" class="input w-full" placeholder="可选，不填则匿名访问">
+                  </div>
+                  <div>
+                    <label class="block text-xs mb-1 text-slate-500">API Base</label>
+                    <input type="text" x-model="provider.apiBase" class="input w-full"
+                      :placeholder="getProviderDefaultApiBase(provider.provider)">
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+              <button @click="showGitApiConfigModal = false" class="btn btn-secondary text-sm">完成</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 新增/编辑推送弹窗 -->
+        <div x-show="showGitPushModal" x-cloak
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div class="modal-panel max-w-3xl p-4 sm:p-6 animate-fade-in">
+            <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 class="font-bold text-lg" style="color: var(--text)"
+                  x-text="gitEditingIndex === null ? '新增推送列表' : '编辑推送列表'"></h3>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">加号添加的是推送列表，先配置列表名称、推送对象，再设置推送仓库</p>
+              </div>
+              <button @click="closeGitPushModal" class="btn btn-secondary text-sm shrink-0">关闭</button>
+            </div>
+
+            <div class="space-y-5">
+              <div class="section-block space-y-4">
+                <h4 class="font-medium" style="color: var(--text)">推送列表信息</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">列表名称</label>
+                    <input type="text" x-model="gitForm.name" class="input w-full" placeholder="例如：主仓库更新推送">
+                  </div>
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">推送类型</label>
+                    <select x-model="gitForm.renderMode" class="input w-full">
+                      <option value="text">文本推送</option>
+                      <option value="render">渲染推送</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">推送群</label>
+                    <input type="text" x-model="gitForm.notifyGroupsStr" class="input w-full"
+                      placeholder="群号，多个用逗号分隔">
+                  </div>
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">推送好友</label>
+                    <input type="text" x-model="gitForm.notifyUsersStr" class="input w-full"
+                      placeholder="QQ 号，多个用逗号分隔">
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-block space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 class="font-medium" style="color: var(--text)">推送仓库配置</h4>
+                    <p class="text-xs mt-1" style="color: var(--text-secondary)">支持为一个推送列表添加多个仓库，点击按钮进入二级页面填写</p>
+                  </div>
+                  <button @click="openGitRepoModal()" class="btn btn-secondary text-sm">添加仓库</button>
+                </div>
+
+                <div x-show="!gitForm.repos || gitForm.repos.length === 0"
+                  class="text-sm rounded-lg border border-dashed p-4 text-center"
+                  style="color: var(--text-secondary); border-color: var(--border);">
+                  还没有添加仓库，点击右上角按钮新增
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <template x-for="(repo, repoIndex) in (gitForm.repos || [])" :key="repo.id">
+                    <div class="repo-config-card">
+                      <div class="flex items-stretch justify-between gap-3 h-full">
+                        <div class="flex-1 min-w-0 space-y-3">
+                          <div class="font-medium break-all" style="color: var(--text)"
+                            x-text="repo.owner + '/' + repo.repo"></div>
+                          <div class="text-xs" style="color: var(--text-secondary)">
+                            Commit 分支：<span x-text="repo.commitBranch || (gitAutoFetchDefaultBranch ? '自动获取' : '未设置')"></span>
+                          </div>
+                          <div class="text-xs" style="color: var(--text-secondary)">
+                            Release 检测：<span x-text="repo.releaseEnabled ? '已开启' : '已关闭'"></span>
+                          </div>
+                          <div class="text-xs" style="color: var(--text-secondary)">
+                            Release 分支：<span x-text="repo.releaseEnabled ? (repo.releaseBranch || repo.commitBranch || '跟随默认提交分支') : '未启用'"></span>
+                          </div>
+                        </div>
+                        <div class="flex flex-col items-end justify-between gap-3 shrink-0">
+                          <span class="text-xs px-2 py-1 rounded-full bg-[var(--primary-light)]"
+                            style="color: var(--primary)" x-text="repo.provider"></span>
+                          <div class="flex items-center gap-2">
+                            <button @click="openGitRepoModal(repoIndex)" class="btn btn-secondary text-sm">编辑</button>
+                            <button @click="removeGitRepoItem(repoIndex)" class="btn text-sm"
+                              style="background:#fee2e2;color:#991b1b;">删除</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+              <button @click="closeGitPushModal" class="btn btn-secondary text-sm">取消</button>
+              <button @click="saveGitPush" class="btn btn-primary text-sm">保存</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 仓库配置二级页 -->
+        <div x-show="showGitRepoModal" x-cloak
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 sm:p-4">
+          <div class="modal-panel max-w-2xl p-4 sm:p-6 animate-fade-in">
+            <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 class="font-bold text-lg" style="color: var(--text)"
+                  x-text="gitRepoEditingIndex === null ? '新增仓库配置' : '编辑仓库配置'"></h3>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">填写完成后保存，会在当前编辑页以卡片形式展示</p>
+              </div>
+              <button @click="closeGitRepoModal" class="btn btn-secondary text-sm shrink-0">关闭</button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">Git 仓库链接</label>
+                <input type="text" x-model="gitRepoForm.repoUrl" @input="handleRepoUrlInput(gitRepoForm)" class="input w-full"
+                  placeholder="https://github.com/owner/repo">
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm mb-1 text-slate-500">仓库提供商</label>
+                  <select x-model="gitRepoForm.provider" class="input w-full">
+                    <option value="GitHub">GitHub</option>
+                    <option value="Gitee">Gitee</option>
+                    <option value="Gitcode">Gitcode</option>
+                    <option value="Gitea">Gitea</option>
+                    <option value="CNB">CNB</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm mb-1 text-slate-500">仓库路径</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" x-model="gitRepoForm.owner" class="input w-full" placeholder="owner">
+                    <input type="text" x-model="gitRepoForm.repo" class="input w-full" placeholder="repo">
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm mb-1 text-slate-500">Commit 检测分支</label>
+                  <input type="text" x-model="gitRepoForm.commitBranch" class="input w-full"
+                    :placeholder="gitAutoFetchDefaultBranch ? '留空则自动获取远程默认分支' : '例如：main'">
+                </div>
+                <div class="section-block space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <label class="block text-sm text-slate-500">启用 Release 检测</label>
+                      <p class="text-xs mt-1" style="color: var(--text-secondary)">默认关闭，开启后才会检查 Release</p>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" x-model="gitRepoForm.releaseEnabled">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">Release 分支 / 标识</label>
+                    <input type="text" x-model="gitRepoForm.releaseBranch" class="input w-full"
+                      :disabled="!gitRepoForm.releaseEnabled"
+                      :placeholder="gitRepoForm.releaseEnabled ? '不填则使用提交配置的分支' : '开启后可配置'">
+                    <p class="text-xs mt-1" style="color: var(--text-secondary)">
+                      开启后如果不填写，将自动使用 Commit 检测分支
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+              <button @click="closeGitRepoModal" class="btn btn-secondary text-sm">取消</button>
+              <button @click="saveGitRepoItem" class="btn btn-primary text-sm">保存仓库</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 插件设置页面 -->
       <!-- 插件设置页面 -->
       <div x-show="currentTab === 'pluginSettings' && !showSecretPanel" x-transition.opacity
         class="max-w-5xl mx-auto space-y-6">
@@ -2132,7 +2651,13 @@
         ignoredPlugins: [],
         selectedRawMirror: '',
         selectedDownloadMirror: '',
-        pluginSources: []
+        pluginSources: [],
+        gitProviders: [],
+        gitPushConfigs: [],
+        gitAutoFetchDefaultBranch: true,
+        gitRenderMode: 'text',
+        gitEnableSchedule: true,
+        gitCheckInterval: 30
       };
     }
 
@@ -2168,6 +2693,7 @@
         menu: [
           { id: 'dashboard', label: '运行状态', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>' },
           { id: 'pluginMarket', label: '插件市场', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>' },
+          { id: 'gitPush', label: 'Git推送设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 8l4 4m0 0l-4 4m4-4H4" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v4m0 8v4" /></svg>' },
           { id: 'pluginSettings', label: '插件设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>' },
           { id: 'autoUpdatePlugins', label: '自动更新插件', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>' },
           { id: 'ignoredPlugins', label: '黑名单插件管理', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.633-1.964-.633-2.732 0L3.732 16c-.77.633.192 3 1.732 3z" /></svg>' },
@@ -2228,6 +2754,48 @@
         installingPlugins: {}, // 记录正在安装的插件状态
         marketIconLoadFailedMap: {}, // 商店图标加载失败记录（用于回退 emoji）
         marketIconLoadedMap: {}, // 商店图标已成功加载记录（用于先 emoji 后替换图片）
+
+        // Git 推送配置
+        gitSearch: '',
+        gitProviders: [],
+        gitPushConfigs: [],
+        gitAutoFetchDefaultBranch: true,
+        gitRenderMode: 'text',
+        gitScheduleEnabled: true,
+        gitCheckInterval: 30,
+        gitDefaultApiBaseMap: {
+          GitHub: 'https://api.github.com/repos',
+          Gitee: 'https://gitee.com/api/v5/repos',
+          Gitcode: 'https://api.gitcode.com/api/v5/repos',
+          Gitea: 'https://gitea.com/api/v1/repos',
+          CNB: 'https://api.cnb.cool'
+        },
+        showGitProviderModal: false,
+        showGitApiConfigModal: false,
+        showGitPushModal: false,
+        showGitRepoModal: false,
+        gitEditingIndex: null,
+        gitRepoEditingIndex: null,
+        // 避免 Alpine 在弹窗未打开时访问 null 对象导致报错
+        gitForm: {
+          id: '',
+          name: '',
+          enabled: true,
+          notifyGroupsStr: '',
+          notifyUsersStr: '',
+          renderMode: 'text',
+          repos: []
+        },
+        gitRepoForm: {
+          id: '',
+          provider: 'GitHub',
+          repoUrl: '',
+          owner: '',
+          repo: '',
+          commitBranch: '',
+          releaseEnabled: false,
+          releaseBranch: ''
+        },
 
         // 插件详情相关
         showPluginDetailModal: false,
@@ -2310,6 +2878,18 @@
           }
 
           return plugins;
+        },
+
+        get filteredGitPushConfigs() {
+          const query = (this.gitSearch || '').trim().toLowerCase();
+          const list = this.gitPushConfigs || [];
+          if (!query) return list;
+          return list.filter(item => {
+            const repos = this.getGitPushRepos(item);
+            const repoText = repos.map(repo => `${repo.owner || ''}/${repo.repo || ''} ${repo.repoUrl || ''}`).join(' ');
+            const target = `${item.name || ''} ${repoText}`.toLowerCase();
+            return target.includes(query);
+          });
         },
 
         filterInstalledPluginsBySearch(plugins) {
@@ -2700,6 +3280,7 @@
         async init() {
           this.initTheme();
           await this.fetchStatus();
+          await this.fetchGitConfig();
           this.fetchInstalledPlugins();
           this.fetchMarketPlugins();
           this.fetchMirrors();
@@ -3608,6 +4189,296 @@
             this.status.online = false;
             this.status.text = '连接断开';
             this.status.uptimeFormatted = '-';
+          }
+        },
+
+        async fetchGitConfig() {
+          try {
+            const data = await this.api('/git-config');
+            this.gitProviders = data.gitProviders || [];
+            this.gitPushConfigs = data.gitPushConfigs || [];
+            this.gitAutoFetchDefaultBranch = data.gitAutoFetchDefaultBranch !== false;
+            this.gitRenderMode = data.gitRenderMode || 'text';
+            this.gitScheduleEnabled = data.gitEnableSchedule !== false;
+            this.gitCheckInterval = Number(data.gitCheckInterval || 30);
+          } catch (e) {
+            console.error('fetchGitConfig failed', e);
+          }
+        },
+
+        getProviderIcon(provider) {
+          switch (provider) {
+            case 'GitHub':
+              return '🐙';
+            case 'Gitee':
+              return '🧡';
+            case 'Gitcode':
+              return '🧩';
+            case 'Gitea':
+              return '🧭';
+            case 'CNB':
+              return '🧪';
+            default:
+              return '🐙';
+          }
+        },
+
+        getGitPushGroupAvatar(push) {
+          const firstGroup = Array.isArray(push?.notifyGroups)
+            ? String(push.notifyGroups[0] || '').trim()
+            : '';
+          if (!firstGroup) return '';
+          return `https://p.qlogo.cn/gh/${firstGroup}/${firstGroup}/100`;
+        },
+
+        initGitForm() {
+          return {
+            id: '',
+            name: '',
+            enabled: true,
+            notifyGroupsStr: '',
+            notifyUsersStr: '',
+            renderMode: this.gitRenderMode || 'text',
+            repos: []
+          };
+        },
+
+        initGitRepoForm() {
+          return {
+            id: '',
+            provider: 'GitHub',
+            repoUrl: '',
+            owner: '',
+            repo: '',
+            commitBranch: '',
+            releaseEnabled: false,
+            releaseBranch: ''
+          };
+        },
+
+        getProviderDefaultApiBase(provider) {
+          return this.gitDefaultApiBaseMap[provider] || '';
+        },
+
+        formatTargetList(list, fallback = '-') {
+          return Array.isArray(list) && list.length > 0 ? list.join(', ') : fallback;
+        },
+
+        getGitPushRepos(push) {
+          if (Array.isArray(push?.repos) && push.repos.length > 0) return push.repos;
+          if (push?.provider && push?.owner && push?.repo) {
+            return [{
+              id: push.id || `${push.provider}-${push.owner}-${push.repo}`,
+              provider: push.provider,
+              repoUrl: push.repoUrl || '',
+              owner: push.owner,
+              repo: push.repo,
+              commitBranch: push.commitBranch || '',
+              releaseEnabled: false,
+              releaseBranch: push.releaseBranch || ''
+            }];
+          }
+          return [];
+        },
+
+        openNewGitPush() {
+          this.gitEditingIndex = null;
+          this.gitForm = this.initGitForm();
+          this.showGitPushModal = true;
+        },
+
+        closeGitPushModal() {
+          this.showGitPushModal = false;
+          this.showGitRepoModal = false;
+          this.gitEditingIndex = null;
+          this.gitRepoEditingIndex = null;
+          // 保持对象结构，避免模板表达式在关闭状态下读取 null
+          this.gitForm = this.initGitForm();
+          this.gitRepoForm = this.initGitRepoForm();
+        },
+
+        openGitRepoModal(index = null) {
+          if (!this.gitForm) return;
+          this.gitRepoEditingIndex = index;
+          if (index !== null && index >= 0 && this.gitForm.repos[index]) {
+            this.gitRepoForm = { ...this.gitForm.repos[index] };
+          } else {
+            this.gitRepoForm = this.initGitRepoForm();
+          }
+          this.showGitRepoModal = true;
+        },
+
+        closeGitRepoModal() {
+          this.showGitRepoModal = false;
+          this.gitRepoEditingIndex = null;
+          // 保持对象结构，避免模板表达式在关闭状态下读取 null
+          this.gitRepoForm = this.initGitRepoForm();
+        },
+
+        handleRepoUrlInput(form = null) {
+          const targetForm = form || this.gitRepoForm;
+          if (!targetForm || !targetForm.repoUrl) return;
+          try {
+            const url = new URL(targetForm.repoUrl.trim());
+            const host = url.hostname.toLowerCase();
+            const parts = url.pathname.split('/').filter(Boolean);
+            if (parts.length >= 2) {
+              targetForm.owner = parts[0];
+              targetForm.repo = parts[1].replace(/\.git$/, '');
+            }
+            if (host.includes('github.com')) targetForm.provider = 'GitHub';
+            else if (host.includes('gitee.com')) targetForm.provider = 'Gitee';
+            else if (host.includes('gitcode.com')) targetForm.provider = 'Gitcode';
+            else if (host.includes('cnb.cool')) targetForm.provider = 'CNB';
+            else if (host.includes('gitea')) targetForm.provider = 'Gitea';
+          } catch (e) { }
+        },
+
+        saveGitRepoItem() {
+          if (!this.gitForm || !this.gitRepoForm) return;
+          if (!this.gitRepoForm.owner || !this.gitRepoForm.repo) {
+            showToast('请填写完整仓库信息', 'error');
+            return;
+          }
+
+          const payload = {
+            id: this.gitRepoForm.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+            provider: this.gitRepoForm.provider,
+            repoUrl: this.gitRepoForm.repoUrl || '',
+            owner: this.gitRepoForm.owner,
+            repo: this.gitRepoForm.repo,
+            commitBranch: this.gitRepoForm.commitBranch || '',
+            releaseEnabled: this.gitRepoForm.releaseEnabled === true,
+            releaseBranch: this.gitRepoForm.releaseBranch || ''
+          };
+
+          const nextRepos = Array.isArray(this.gitForm.repos) ? [...this.gitForm.repos] : [];
+          if (this.gitRepoEditingIndex !== null && this.gitRepoEditingIndex >= 0) {
+            nextRepos[this.gitRepoEditingIndex] = payload;
+          } else {
+            nextRepos.push(payload);
+          }
+          this.gitForm.repos = nextRepos;
+          this.closeGitRepoModal();
+        },
+
+        removeGitRepoItem(index) {
+          if (!this.gitForm || !Array.isArray(this.gitForm.repos)) return;
+          this.gitForm.repos.splice(index, 1);
+          this.gitForm.repos = [...this.gitForm.repos];
+        },
+
+        async saveGitProviders() {
+          try {
+            await this.api('/git-config', 'POST', {
+              gitProviders: this.gitProviders,
+              gitAutoFetchDefaultBranch: this.gitAutoFetchDefaultBranch,
+              gitRenderMode: this.gitRenderMode,
+              gitEnableSchedule: this.gitScheduleEnabled,
+              gitCheckInterval: Math.max(Number(this.gitCheckInterval) || 1, 1)
+            });
+            this.gitCheckInterval = Math.max(Number(this.gitCheckInterval) || 1, 1);
+            this.showGitApiConfigModal = false;
+            this.showGitProviderModal = false;
+            showToast('推送设置已保存', 'success');
+          } catch (e) {
+            showToast('保存失败: ' + e.message, 'error');
+          }
+        },
+
+        async saveGitPush() {
+          if (!this.gitForm) return;
+          if (!this.gitForm.name) {
+            showToast('请填写推送列表名称', 'error');
+            return;
+          }
+          if (!Array.isArray(this.gitForm.repos) || this.gitForm.repos.length === 0) {
+            showToast('请先添加至少一个仓库配置', 'error');
+            return;
+          }
+
+          const payload = {
+            id: this.gitForm.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+            name: this.gitForm.name,
+            enabled: this.gitForm.enabled !== false,
+            notifyGroups: (this.gitForm.notifyGroupsStr || '').split(/[,，\s]+/).filter(Boolean),
+            notifyUsers: (this.gitForm.notifyUsersStr || '').split(/[,，\s]+/).filter(Boolean),
+            renderMode: this.gitForm.renderMode || 'text',
+            repos: (this.gitForm.repos || []).map(item => ({
+              id: item.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+              provider: item.provider,
+              repoUrl: item.repoUrl || '',
+              owner: item.owner,
+              repo: item.repo,
+              commitBranch: item.commitBranch || '',
+              releaseEnabled: item.releaseEnabled === true,
+              releaseBranch: item.releaseBranch || ''
+            }))
+          };
+
+          const next = [...this.gitPushConfigs];
+          if (this.gitEditingIndex !== null && this.gitEditingIndex >= 0) {
+            next[this.gitEditingIndex] = payload;
+          } else {
+            next.push(payload);
+          }
+
+          try {
+            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+            this.gitPushConfigs = next;
+            this.closeGitPushModal();
+            showToast('推送配置已保存', 'success');
+          } catch (e) {
+            showToast('保存失败: ' + e.message, 'error');
+          }
+        },
+
+        editGitPush(index) {
+          const item = this.gitPushConfigs[index];
+          if (!item) return;
+          this.gitEditingIndex = index;
+          this.gitForm = {
+            id: item.id,
+            name: item.name,
+            enabled: item.enabled !== false,
+            notifyGroupsStr: (item.notifyGroups || []).join(', '),
+            notifyUsersStr: (item.notifyUsers || []).join(', '),
+            renderMode: item.renderMode || 'text',
+            repos: this.getGitPushRepos(item).map(repo => ({ ...repo }))
+          };
+          this.showGitPushModal = true;
+        },
+
+        async removeGitPush(index) {
+          const next = [...this.gitPushConfigs];
+          next.splice(index, 1);
+          try {
+            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+            this.gitPushConfigs = next;
+            showToast('已删除推送配置', 'success');
+          } catch (e) {
+            showToast('删除失败: ' + e.message, 'error');
+          }
+        },
+
+        async toggleGitPushEnabled(index, enabled) {
+          const next = [...this.gitPushConfigs];
+          if (!next[index]) return;
+          next[index].enabled = enabled;
+          try {
+            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+            this.gitPushConfigs = next;
+          } catch (e) {
+            showToast('操作失败: ' + e.message, 'error');
+          }
+        },
+
+        async debugGitPush(configId) {
+          try {
+            const result = await this.api('/git-push-debug', 'POST', { configId });
+            showToast(result.message || '已立即检测并推送', 'success');
+          } catch (e) {
+            showToast('立即检测失败: ' + e.message, 'error');
           }
         },
 

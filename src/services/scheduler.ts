@@ -6,10 +6,15 @@
 import { pluginState } from '../core/state';
 import { DEFAULT_CONFIG } from '../config';
 import { checkAllUpdates, installPlugin } from './updater';
+import { ensureGitDefaultBranches, runGitPushCheck } from './git-updater';
 import type { UpdateInfo } from '../types';
 
-/** 首次检查定时器（用于 stopScheduler 时清理） */
+/** 首次商店检查定时器（用于 stopScheduler 时清理） */
 let firstCheckTimer: ReturnType<typeof setTimeout> | null = null;
+/** 首次 Git 检查定时器（用于 stopScheduler 时清理） */
+let firstGitCheckTimer: ReturnType<typeof setTimeout> | null = null;
+/** Git 检查定时器 */
+let gitCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 /** 简单延迟 */
 function sleep(ms: number): Promise<void> {
@@ -240,9 +245,9 @@ async function pushUpdateResult(result: { update: UpdateInfo; ok: boolean }[]): 
     await sendWithRateLimit(tasks);
 }
 
-/** 执行一次检查 */
+/** 执行一次商店更新检查 */
 export async function runScheduledCheck(): Promise<void> {
-    pluginState.logger.info('定时检查开始...');
+    pluginState.logger.info('商店插件定时检查开始...');
     const updates = await checkAllUpdates();
 
     if (updates.length === 0) return;
@@ -289,24 +294,49 @@ export async function runScheduledCheck(): Promise<void> {
     }
 }
 
+/** 执行一次 Git 推送检查 */
+export async function runScheduledGitCheck(): Promise<void> {
+    pluginState.logger.info('Git 推送定时检查开始...');
+    await ensureGitDefaultBranches();
+    await runGitPushCheck();
+}
+
 /** 启动定时检查 */
 export function startScheduler(): void {
     stopScheduler();
-    if (!pluginState.config.enableSchedule) {
-        pluginState.logger.debug('定时检查已禁用');
-        return;
-    }
-    const intervalMs = Math.max(pluginState.config.checkInterval, 1) * 60 * 1000;
-    pluginState.checkTimer = setInterval(() => {
-        runScheduledCheck().catch(e => pluginState.logger.error('定时检查异常: ' + e));
-    }, intervalMs);
-    pluginState.logger.info(`定时检查已启动，间隔 ${pluginState.config.checkInterval} 分钟`);
 
-    // 启动后延迟 30 秒执行首次检查（可在 stopScheduler 中清理）
-    firstCheckTimer = setTimeout(() => {
-        firstCheckTimer = null;
-        runScheduledCheck().catch(e => pluginState.logger.error('首次检查异常: ' + e));
-    }, 30000);
+    // 商店插件更新检测
+    if (!pluginState.config.enableSchedule) {
+        pluginState.logger.debug('商店插件定时检查已禁用');
+    } else {
+        const intervalMs = Math.max(pluginState.config.checkInterval, 1) * 60 * 1000;
+        pluginState.checkTimer = setInterval(() => {
+            runScheduledCheck().catch(e => pluginState.logger.error('商店插件定时检查异常: ' + e));
+        }, intervalMs);
+        pluginState.logger.info(`商店插件定时检查已启动，间隔 ${pluginState.config.checkInterval} 分钟`);
+
+        // 启动后延迟 30 秒执行首次检查（可在 stopScheduler 中清理）
+        firstCheckTimer = setTimeout(() => {
+            firstCheckTimer = null;
+            runScheduledCheck().catch(e => pluginState.logger.error('商店插件首次检查异常: ' + e));
+        }, 30000);
+    }
+
+    // Git 推送检测
+    if (!pluginState.config.gitEnableSchedule) {
+        pluginState.logger.debug('Git 推送定时检查已禁用');
+    } else {
+        const gitIntervalMs = Math.max(pluginState.config.gitCheckInterval || 1, 1) * 60 * 1000;
+        gitCheckTimer = setInterval(() => {
+            runScheduledGitCheck().catch(e => pluginState.logger.error('Git 推送定时检查异常: ' + e));
+        }, gitIntervalMs);
+        pluginState.logger.info(`Git 推送定时检查已启动，间隔 ${pluginState.config.gitCheckInterval} 分钟`);
+
+        firstGitCheckTimer = setTimeout(() => {
+            firstGitCheckTimer = null;
+            runScheduledGitCheck().catch(e => pluginState.logger.error('Git 推送首次检查异常: ' + e));
+        }, 30000);
+    }
 }
 
 /** 停止定时检查 */
@@ -318,5 +348,13 @@ export function stopScheduler(): void {
     if (firstCheckTimer) {
         clearTimeout(firstCheckTimer);
         firstCheckTimer = null;
+    }
+    if (gitCheckTimer) {
+        clearInterval(gitCheckTimer);
+        gitCheckTimer = null;
+    }
+    if (firstGitCheckTimer) {
+        clearTimeout(firstGitCheckTimer);
+        firstGitCheckTimer = null;
     }
 }
