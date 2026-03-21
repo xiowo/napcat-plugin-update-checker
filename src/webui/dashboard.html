@@ -2137,56 +2137,6 @@
           </div>
         </div>
 
-        <!-- 更新设置卡片 -->
-        <div class="card p-5">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-lg" style="color: var(--text)">更新设置</h3>
-          </div>
-          <div class="space-y-4">
-            <div class="card p-4 relative" :class="updateModeDropdownOpen ? 'z-20' : 'z-10'"
-              @click.outside="updateModeDropdownOpen = false">
-              <div class="flex items-center justify-between cursor-pointer"
-                @click="updateModeDropdownOpen = !updateModeDropdownOpen" style="min-height: 44px;">
-                <div>
-                  <div class="font-medium text-sm select-none" style="color: var(--text)">更新模式</div>
-                  <div class="text-xs" style="color: var(--text-secondary)">
-                    <span x-text="config.updateMode === 'notify' ? '仅通知' : '自动更新'"></span>
-                  </div>
-                </div>
-                <svg class="w-4 h-4 transition-transform" :class="updateModeDropdownOpen ? 'transform rotate-180' : ''"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              <div x-show="updateModeDropdownOpen" x-transition x-cloak
-                class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
-                <button @click="config.updateMode = 'notify'; updateModeDropdownOpen = false; markNonSwitchChanged()"
-                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'notify' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
-                  仅通知
-                </button>
-                <button @click="config.updateMode = 'auto'; updateModeDropdownOpen = false; markNonSwitchChanged()"
-                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'auto' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
-                  自动更新
-                </button>
-              </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="font-medium" style="color: var(--text)">启用定时检查</div>
-                <div class="text-xs" style="color: var(--text-secondary)">是否启用定时检查插件更新</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" x-model="config.enableSchedule" @change="saveConfig()">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="flex flex-col gap-2">
-              <label class="text-sm font-medium" style="color: var(--text-secondary)">检查间隔（分钟）</label>
-              <input type="number" x-model.number="config.checkInterval" @input="markNonSwitchChanged()"
-                @change="markNonSwitchChanged()" placeholder="定时检查更新的间隔时间，最小为 1 分钟" class="input flex-1" min="1">
-            </div>
-          </div>
-        </div>
 
         <!-- 通知设置卡片 -->
         <div class="card p-5">
@@ -2322,274 +2272,368 @@
         </div>
       </div>
 
-      <!-- 自动更新插件列表页面 -->
-      <div x-show="currentTab === 'autoUpdatePlugins' && !showSecretPanel" x-transition.opacity
+      <!-- 插件更新设置页面 -->
+      <div x-show="currentTab === 'pluginUpdateSettings' && !showSecretPanel" x-transition.opacity
         class="max-w-5xl mx-auto space-y-4">
-        <!-- 操作栏 -->
-        <div class="card p-4 flex justify-between items-center animate-fade-in">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">
-              📦</div>
+        <div class="card p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 class="font-bold" style="color: var(--text)">自动更新插件</h3>
-              <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
-                  x-text="config.autoUpdatePlugins.length"></span> 个自动更新插件</p>
+              <h3 class="font-bold text-lg" style="color: var(--text)">插件更新设置</h3>
+              <p class="text-sm" style="color: var(--text-secondary)">统一管理更新策略、自动更新插件与黑名单插件</p>
+            </div>
+            <button @click="showPluginUpdateSettingsModal = true"
+              class="btn btn-secondary text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              打开插件更新设置
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">更新模式</div>
+              <div class="font-semibold" style="color: var(--text)"
+                x-text="config.updateMode === 'notify' ? '仅通知' : '自动更新'"></div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">定时检查</div>
+              <div class="font-semibold" style="color: var(--text)" x-text="config.enableSchedule ? '已启用' : '已禁用'"></div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">检查间隔</div>
+              <div class="font-semibold" style="color: var(--text)">
+                <span x-text="config.checkInterval"></span> 分钟
+              </div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">自动更新插件</div>
+              <div class="font-semibold" style="color: var(--text)">
+                <span x-text="config.autoUpdatePlugins.length"></span> 个
+              </div>
+            </div>
+            <div class="section-block">
+              <div class="text-xs mb-1" style="color: var(--text-secondary)">黑名单插件</div>
+              <div class="font-semibold" style="color: var(--text)">
+                <span x-text="config.ignoredPlugins.length"></span> 个
+              </div>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+        </div>
+
+        <div class="card p-2">
+          <div class="flex items-center gap-2 overflow-x-auto">
+            <button @click="pluginUpdateSettingsTab = 'autoUpdate'"
+              :class="['px-4 py-2 rounded-lg text-sm whitespace-nowrap', pluginUpdateSettingsTab === 'autoUpdate' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              自动更新插件
+            </button>
+            <button @click="pluginUpdateSettingsTab = 'ignored'"
+              :class="['px-4 py-2 rounded-lg text-sm whitespace-nowrap', pluginUpdateSettingsTab === 'ignored' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              黑名单插件管理
+            </button>
+          </div>
+        </div>
+
+        <div x-show="pluginUpdateSettingsTab === 'autoUpdate'" x-transition.opacity class="space-y-4">
+          <div class="card p-4 flex justify-between items-center animate-fade-in">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">📦</div>
+              <div>
+                <h3 class="font-bold" style="color: var(--text)">自动更新插件</h3>
+                <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
+                    x-text="config.autoUpdatePlugins.length"></span> 个自动更新插件</p>
+              </div>
+            </div>
             <button @click="clearAutoUpdatePlugins" class="btn text-sm" style="background: #fee2e2; color: #991b1b;">
               清空
             </button>
           </div>
-        </div>
 
-        <!-- 插件列表 - 卡片式布局 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-for="(pluginName, index) in config.autoUpdatePlugins" :key="pluginName">
-            <div class="card hover:shadow-md transition-shadow animate-fade-in"
-              :style="`animation-delay: ${index * 50}ms`">
-              <div class="p-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-blue-50 flex-shrink-0">
-                      <template x-if="getPluginIconUrl(pluginName)">
-                        <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
-                      </template>
-                      <span x-else>🔌</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
-                      <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
-                        x-show="getPluginDescription(pluginName)"></div>
-                      <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
-                        <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
-                          x-show="getPluginAuthor(pluginName)"></span>
+        <!-- 插件列表-->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="(pluginName, index) in config.autoUpdatePlugins" :key="pluginName">
+              <div class="card hover:shadow-md transition-shadow animate-fade-in" :style="`animation-delay: ${index * 50}ms`">
+                <div class="p-4">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-blue-50 flex-shrink-0">
+                        <template x-if="getPluginIconUrl(pluginName)">
+                          <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
+                        </template>
+                        <span x-else>🔌</span>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
+                        <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
+                          x-show="getPluginDescription(pluginName)"></div>
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
+                          <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
+                            x-show="getPluginAuthor(pluginName)"></span>
+                        </div>
                       </div>
                     </div>
+                    <button @click="removeAutoUpdatePlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
+                      删除
+                    </button>
                   </div>
-                  <button @click="removeAutoUpdatePlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
-                    删除
-                  </button>
                 </div>
               </div>
-            </div>
-          </template>
-        </div>
+            </template>
+          </div>
 
         <!-- 搜索框 -->
-        <div class="card p-4 mt-4">
-          <div class="relative">
-            <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
-            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          <div class="card p-4 mt-4">
+            <div class="relative">
+              <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
+              <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
 
         <!-- 筛选器 -->
-        <div class="flex items-center gap-3 mt-4 mb-4">
-          <button @click="autoUpdateFilter = 'all'"
-            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            全部
-          </button>
-          <button @click="autoUpdateFilter = 'enabled'"
-            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            已启用
-          </button>
-          <button @click="autoUpdateFilter = 'disabled'"
-            :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            未启用
-          </button>
-        </div>
+          <div class="flex items-center gap-3 mt-4 mb-4">
+            <button @click="autoUpdateFilter = 'all'"
+              :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              全部
+            </button>
+            <button @click="autoUpdateFilter = 'enabled'"
+              :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              已启用
+            </button>
+            <button @click="autoUpdateFilter = 'disabled'"
+              :class="['px-3 py-1 rounded-full text-xs', autoUpdateFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              未启用
+            </button>
+          </div>
 
-        <!-- 已安装插件列表 - 卡片式布局 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template
-            x-for="plugin in (currentTab === 'autoUpdatePlugins' ? filteredAutoUpdatePlugins : filteredIgnoredPlugins)"
-            :key="plugin.name">
-            <div class="card hover:shadow-md transition-shadow">
-              <div class="p-4 flex flex-col">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                      <template x-if="plugin.icon">
-                        <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                          @error="$event.target.style.display='none'">
-                      </template>
-                      <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
-                      <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
-                        x-show="plugin.description"></div>
-                      <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500" x-text="plugin.currentVersion"></span>
-                        <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+        <!-- 已安装插件列表-->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="plugin in filteredAutoUpdatePlugins" :key="plugin.name">
+              <div class="card hover:shadow-md transition-shadow">
+                <div class="p-4 flex flex-col">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                        <template x-if="plugin.icon">
+                          <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                            @error="$event.target.style.display='none'">
+                        </template>
+                        <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
+                        <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
+                          x-show="plugin.description"></div>
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-slate-500" x-text="plugin.currentVersion"></span>
+                          <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'autoUpdatePlugins'">
-                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">自动更新</span>
-                    <label class="toggle-switch">
-                      <input type="checkbox" :checked="config.autoUpdatePlugins.includes(plugin.name)"
-                        @change="toggleAutoUpdatePlugin(plugin.name, $event.target.checked)">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'ignoredPlugins'">
-                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">黑名单</span>
-                    <label class="toggle-switch">
-                      <input type="checkbox" :checked="config.ignoredPlugins.includes(plugin.name)"
-                        @change="toggleIgnoredPlugin(plugin.name, $event.target.checked)">
-                      <span class="toggle-slider"></span>
-                    </label>
+                    <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">自动更新</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" :checked="config.autoUpdatePlugins.includes(plugin.name)"
+                          @change="toggleAutoUpdatePlugin(plugin.name, $event.target.checked)">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- 黑名单插件管理页面 -->
-      <div x-show="currentTab === 'ignoredPlugins' && !showSecretPanel" x-transition.opacity
-        class="max-w-5xl mx-auto space-y-4">
-        <!-- 操作栏 -->
-        <div class="card p-4 flex justify-between items-center animate-fade-in">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">
-              🚫</div>
-            <div>
-              <h3 class="font-bold" style="color: var(--text)">黑名单插件</h3>
-              <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
-                  x-text="config.ignoredPlugins.length"></span> 个黑名单插件</p>
-              <p class="text-xs" style="color: var(--text-secondary)">黑名单插件即使在自动更新中勾选也不会更新</p>
-            </div>
+            </template>
           </div>
-          <div class="flex items-center gap-2">
+        </div>
+
+        <div x-show="pluginUpdateSettingsTab === 'ignored'" x-transition.opacity class="space-y-4">
+          <div class="card p-4 flex justify-between items-center animate-fade-in">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[var(--primary-light)]">🚫</div>
+              <div>
+                <h3 class="font-bold" style="color: var(--text)">黑名单插件</h3>
+                <p class="text-xs" style="color: var(--text-secondary)">已配置 <span
+                    x-text="config.ignoredPlugins.length"></span> 个黑名单插件</p>
+                <p class="text-xs" style="color: var(--text-secondary)">黑名单插件即使在自动更新中勾选也不会更新</p>
+              </div>
+            </div>
             <button @click="clearIgnoredPlugins" class="btn text-sm" style="background: #fee2e2; color: #991b1b;">
               清空
             </button>
           </div>
-        </div>
 
-        <!-- 插件列表 - 卡片式布局 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-for="(pluginName, index) in config.ignoredPlugins" :key="pluginName">
-            <div class="card hover:shadow-md transition-shadow animate-fade-in"
-              :style="`animation-delay: ${index * 50}ms`">
-              <div class="p-4">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-red-50 flex-shrink-0">
-                      <template x-if="getPluginIconUrl(pluginName)">
-                        <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
-                      </template>
-                      <span x-else>🚫</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
-                      <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
-                        x-show="getPluginDescription(pluginName)"></div>
-                      <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
-                        <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
-                          x-show="getPluginAuthor(pluginName)"></span>
+        <!-- 插件列表-->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="(pluginName, index) in config.ignoredPlugins" :key="pluginName">
+              <div class="card hover:shadow-md transition-shadow animate-fade-in" :style="`animation-delay: ${index * 50}ms`">
+                <div class="p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm bg-red-50 flex-shrink-0">
+                        <template x-if="getPluginIconUrl(pluginName)">
+                          <img x-bind:src="getPluginIconUrl(pluginName)" alt="Plugin icon" class="w-6 h-6 rounded-full">
+                        </template>
+                        <span x-else>🚫</span>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium line-clamp-2" x-text="getPluginDisplayName(pluginName)"></div>
+                        <div class="text-xs text-slate-500 line-clamp-2" x-text="getPluginDescription(pluginName)"
+                          x-show="getPluginDescription(pluginName)"></div>
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-slate-500" x-text="getPluginVersion(pluginName)"></span>
+                          <span class="text-slate-400" x-text="'by ' + getPluginAuthor(pluginName)"
+                            x-show="getPluginAuthor(pluginName)"></span>
+                        </div>
                       </div>
                     </div>
+                    <button @click="removeIgnoredPlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
+                      删除
+                    </button>
                   </div>
-                  <button @click="removeIgnoredPlugin(index)" class="btn btn-secondary text-sm flex-shrink-0 ml-3">
-                    删除
-                  </button>
                 </div>
               </div>
-            </div>
-          </template>
-        </div>
+            </template>
+          </div>
 
         <!-- 搜索框 -->
-        <div class="card p-4 mt-4">
-          <div class="relative">
-            <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
-            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          <div class="card p-4 mt-4">
+            <div class="relative">
+              <input type="text" x-model="searchQuery" placeholder="搜索插件..." class="input w-full pl-10">
+              <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
 
         <!-- 筛选器 -->
-        <div class="flex items-center gap-3 mt-4 mb-4">
-          <button @click="ignoredFilter = 'all'"
-            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            全部
-          </button>
-          <button @click="ignoredFilter = 'enabled'"
-            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            已启用
-          </button>
-          <button @click="ignoredFilter = 'disabled'"
-            :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
-            未启用
-          </button>
-        </div>
+          <div class="flex items-center gap-3 mt-4 mb-4">
+            <button @click="ignoredFilter = 'all'"
+              :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              全部
+            </button>
+            <button @click="ignoredFilter = 'enabled'"
+              :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'enabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              已启用
+            </button>
+            <button @click="ignoredFilter = 'disabled'"
+              :class="['px-3 py-1 rounded-full text-xs', ignoredFilter === 'disabled' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--primary-light)]']">
+              未启用
+            </button>
+          </div>
 
-        <!-- 已安装插件列表 - 卡片式布局 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template
-            x-for="plugin in (currentTab === 'autoUpdatePlugins' ? filteredAutoUpdatePlugins : filteredIgnoredPlugins)"
-            :key="plugin.name">
-            <div class="card hover:shadow-md transition-shadow">
-              <div class="p-4 flex flex-col">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
-                      <template x-if="plugin.icon">
-                        <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
-                          @error="$event.target.style.display='none'">
-                      </template>
-                      <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
-                      <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
-                        x-show="plugin.description"></div>
-                      <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500" x-text="plugin.currentVersion"></span>
-                        <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+        <!-- 已安装插件列表-->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="plugin in filteredIgnoredPlugins" :key="plugin.name">
+              <div class="card hover:shadow-md transition-shadow">
+                <div class="p-4 flex flex-col">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                        <template x-if="plugin.icon">
+                          <img :src="plugin.icon" alt="Plugin icon" class="w-full h-full object-cover"
+                            @error="$event.target.style.display='none'">
+                        </template>
+                        <span x-show="!plugin.icon" x-text="getPluginIcon(plugin.name)"></span>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-bold text-base line-clamp-2" x-text="plugin.displayName || plugin.name"></div>
+                        <div class="text-xs text-slate-500 line-clamp-2" x-text="plugin.description"
+                          x-show="plugin.description"></div>
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-slate-500" x-text="plugin.currentVersion"></span>
+                          <span class="text-slate-400" x-text="'by ' + (plugin.author || 'Unknown')"></span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'autoUpdatePlugins'">
-                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">自动更新</span>
-                    <label class="toggle-switch">
-                      <input type="checkbox" :checked="config.autoUpdatePlugins.includes(plugin.name)"
-                        @change="toggleAutoUpdatePlugin(plugin.name, $event.target.checked)">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-3" x-show="currentTab === 'ignoredPlugins'">
-                    <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">黑名单</span>
-                    <label class="toggle-switch">
-                      <input type="checkbox" :checked="config.ignoredPlugins.includes(plugin.name)"
-                        @change="toggleIgnoredPlugin(plugin.name, $event.target.checked)">
-                      <span class="toggle-slider"></span>
-                    </label>
+                    <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <span class="text-xs whitespace-nowrap" style="color: var(--text-secondary)">黑名单</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" :checked="config.ignoredPlugins.includes(plugin.name)"
+                          @change="toggleIgnoredPlugin(plugin.name, $event.target.checked)">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- 插件更新设置二级页 -->
+      <div x-show="showPluginUpdateSettingsModal" x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+        <div class="modal-panel max-w-2xl p-4 sm:p-6 animate-fade-in">
+          <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+            <div>
+              <h3 class="font-bold text-lg" style="color: var(--text)">插件更新设置</h3>
+              <p class="text-xs mt-1" style="color: var(--text-secondary)">管理更新模式、定时检查与检查间隔</p>
             </div>
-          </template>
+            <button @click="showPluginUpdateSettingsModal = false" class="btn btn-secondary text-sm shrink-0">关闭</button>
+          </div>
+
+          <div class="section-block space-y-4">
+            <div class="card p-4 relative" :class="updateModeDropdownOpen ? 'z-20' : 'z-10'"
+              @click.outside="updateModeDropdownOpen = false">
+              <div class="flex items-center justify-between cursor-pointer"
+                @click="updateModeDropdownOpen = !updateModeDropdownOpen" style="min-height: 44px;">
+                <div>
+                  <div class="font-medium text-sm select-none" style="color: var(--text)">更新模式</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">
+                    <span x-text="config.updateMode === 'notify' ? '仅通知' : '自动更新'"></span>
+                  </div>
+                </div>
+                <svg class="w-4 h-4 transition-transform" :class="updateModeDropdownOpen ? 'transform rotate-180' : ''"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              <div x-show="updateModeDropdownOpen" x-transition x-cloak
+                class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+                <button @click="config.updateMode = 'notify'; updateModeDropdownOpen = false; markNonSwitchChanged()"
+                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'notify' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                  仅通知
+                </button>
+                <button @click="config.updateMode = 'auto'; updateModeDropdownOpen = false; markNonSwitchChanged()"
+                  :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', config.updateMode === 'auto' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                  自动更新
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium" style="color: var(--text)">启用定时检查</div>
+                <div class="text-xs" style="color: var(--text-secondary)">是否启用定时检查插件更新</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" x-model="config.enableSchedule" @change="saveConfig()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" style="color: var(--text-secondary)">检查间隔（分钟）</label>
+              <input type="number" x-model.number="config.checkInterval" @input="markNonSwitchChanged()"
+                @change="markNonSwitchChanged()" placeholder="定时检查更新的间隔时间，最小为 1 分钟" class="input flex-1" min="1">
+            </div>
+          </div>
+
+          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <button @click="showPluginUpdateSettingsModal = false" class="btn btn-secondary text-sm">取消</button>
+            <button @click="saveConfig(); showPluginUpdateSettingsModal = false" class="btn btn-primary text-sm">保存</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2694,9 +2738,8 @@
           { id: 'dashboard', label: '运行状态', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>' },
           { id: 'pluginMarket', label: '插件市场', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>' },
           { id: 'gitPush', label: 'Git推送设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 8l4 4m0 0l-4 4m4-4H4" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v4m0 8v4" /></svg>' },
+          { id: 'pluginUpdateSettings', label: '插件更新设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>' },
           { id: 'pluginSettings', label: '插件设置', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>' },
-          { id: 'autoUpdatePlugins', label: '自动更新插件', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>' },
-          { id: 'ignoredPlugins', label: '黑名单插件管理', icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.633-1.964-.633-2.732 0L3.732 16c-.77.633.192 3 1.732 3z" /></svg>' },
         ],
 
         status: { text: '连接中...', online: false, uptimeFormatted: '-' },
@@ -2731,6 +2774,7 @@
         // 筛选器状态
         autoUpdateFilter: 'all',
         ignoredFilter: 'all',
+        pluginUpdateSettingsTab: 'autoUpdate',
 
         // 插件市场相关
         pluginSources: [],
@@ -2771,6 +2815,7 @@
           CNB: 'https://api.cnb.cool'
         },
         showGitProviderModal: false,
+        showPluginUpdateSettingsModal: false,
         showGitApiConfigModal: false,
         showGitPushModal: false,
         showGitRepoModal: false,
