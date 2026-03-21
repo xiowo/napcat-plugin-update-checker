@@ -2369,8 +2369,7 @@
                       <div class="text-xs text-slate-500 truncate" x-text="plugin.currentVersion || '-'"></div>
                     </div>
                   </div>
-                  <button @click="openPluginSourceEdit(plugin)" class="btn btn-secondary text-xs whitespace-nowrap"
-                    :disabled="getInstalledPluginSourceOptions(plugin).length === 0">
+                  <button @click="openPluginSourceEdit(plugin)" class="btn btn-secondary text-xs whitespace-nowrap">
                     编辑
                   </button>
                 </div>
