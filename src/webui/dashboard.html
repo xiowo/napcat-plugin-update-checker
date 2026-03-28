@@ -2159,25 +2159,6 @@
         </div>
 
 
-        <!-- 通知设置卡片 -->
-        <div class="card p-5">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-lg" style="color: var(--text)">通知设置</h3>
-          </div>
-          <div class="space-y-4">
-            <div class="flex flex-col gap-2">
-              <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，逗号分隔)</label>
-              <input type="text" x-model="config.notifyGroupsStr" @input="markNonSwitchChanged()"
-                placeholder="例如：12345678, 12345678" class="input flex-1">
-            </div>
-            <div class="flex flex-col gap-2">
-              <label class="text-sm font-medium" style="color: var(--text-secondary)">通知用户 (填QQ号，逗号分隔)</label>
-              <input type="text" x-model="config.notifyUsersStr" @input="markNonSwitchChanged()"
-                placeholder="例如：123456, 123456" class="input flex-1">
-            </div>
-          </div>
-        </div>
-
         <!-- Raw 配置卡片 -->
         <div class="card p-5">
           <div class="flex justify-between items-center mb-4">
@@ -2792,6 +2773,22 @@
               <label class="text-sm font-medium" style="color: var(--text-secondary)">检查间隔（分钟）</label>
               <input type="number" x-model.number="config.checkInterval" @input="markNonSwitchChanged()"
                 @change="markNonSwitchChanged()" placeholder="定时检查更新的间隔时间，最小为 1 分钟" class="input flex-1" min="1">
+            </div>
+
+            <div class="pt-1">
+              <div class="font-medium mb-2" style="color: var(--text)">通知设置</div>
+              <div class="space-y-3">
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，逗号分隔)</label>
+                  <input type="text" x-model="config.notifyGroupsStr" @input="markNonSwitchChanged()"
+                    placeholder="例如：12345678, 12345678" class="input flex-1">
+                </div>
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知用户 (填QQ号，逗号分隔)</label>
+                  <input type="text" x-model="config.notifyUsersStr" @input="markNonSwitchChanged()"
+                    placeholder="例如：123456, 123456" class="input flex-1">
+                </div>
+              </div>
             </div>
           </div>
 
