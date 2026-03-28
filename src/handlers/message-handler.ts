@@ -16,6 +16,11 @@ import { DEFAULT_CONFIG } from '../config';
 import { pluginState } from '../core/state';
 import { checkAllUpdates, installPlugin } from '../services/updater';
 import { runGitPushDebugForGroup } from '../services/git-updater';
+import {
+    getStoreUpdateByIndex,
+    getStoreUpdatesFromRegistry,
+    markStoreUpdateInstalled,
+} from '../services/update-registry';
 
 // ==================== CD 冷却管理 ====================
 
@@ -260,6 +265,61 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
         if (await denyIfNoPermission(ctx, event)) return;
 
+        // 指定编号更新
+        const parseUpdateIndex = (): number | null => {
+            const candidates = [
+                subCommandRaw,
+                `${subCommandRaw}${args.slice(1).join('')}`,
+                rawMessage.slice(prefix.length).trim(),
+            ].filter(Boolean);
+
+            for (const text of candidates) {
+                const normalized = String(text).replace(/\s+/g, '');
+                const m = normalized.match(/^编号(\d+)$/);
+                if (m) {
+                    const idx = Number(m[1]);
+                    if (Number.isInteger(idx) && idx > 0) return idx;
+                }
+            }
+
+            if (subCommandRaw === '编号' && args[1]) {
+                const idx = Number(args[1]);
+                if (Number.isInteger(idx) && idx > 0) return idx;
+            }
+
+            return null;
+        };
+
+        const updateIndex = parseUpdateIndex();
+        if (updateIndex !== null) {
+            if (await guardGroupCooldown(ctx, event, `编号${updateIndex}`)) return;
+
+            const target = getStoreUpdateByIndex(updateIndex);
+            if (!target) {
+                await sendReply(ctx, event, `❌ 未找到编号 ${updateIndex} 的可更新插件`);
+                if (isGroupMessage(event)) setCooldown(event.group_id, `编号${updateIndex}`);
+                return;
+            }
+
+            await sendReply(ctx, event, `🔄 正在更新 [#${updateIndex}] ${target.displayName} ...`);
+
+            try {
+                const ok = await installPlugin(target.update);
+                if (ok) {
+                    markStoreUpdateInstalled(target.pluginName, target.update.latestVersion);
+                    await sendReply(ctx, event, `✅ 更新成功：${target.displayName}`);
+                } else {
+                    await sendReply(ctx, event, `❌ 更新失败：${target.displayName}`);
+                }
+            } catch (error) {
+                pluginState.logger.error(`按编号更新失败 index=${updateIndex}:`, error);
+                await sendReply(ctx, event, `❌ 更新失败：${target.displayName}`);
+            }
+
+            if (isGroupMessage(event)) setCooldown(event.group_id, `编号${updateIndex}`);
+            return;
+        }
+
         // 命令处理逻辑
         switch (subCommand) {
             case '帮助': {
@@ -299,11 +359,15 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     if (updates.length === 0) {
                         await sendReply(ctx, event, '✅ 所有插件均为最新版本');
                     } else {
+                        const indexedUpdates = getStoreUpdatesFromRegistry();
                         const lines = [
                             `[= 发现可更新插件 =]`,
-                            ...updates.map(u => `${u.displayName}: ${u.currentVersion} → ${u.latestVersion}`),
+                            ...(indexedUpdates.length > 0
+                                ? indexedUpdates.map(item => `[#${item.index}] ${item.displayName}: ${item.update.currentVersion} → ${item.update.latestVersion}`)
+                                : updates.map(u => `${u.displayName}: ${u.currentVersion} → ${u.latestVersion}`)),
                             '',
-                            `发送 "${prefix} 全部" 执行更新`,
+                            `发送 "${prefix}全部" 执行更新`,
+                            `发送 "${prefix}编号1" 指定更新对应编号插件`,
                         ];
                         await sendReply(ctx, event, lines.join('\n'));
                     }
@@ -319,18 +383,21 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             case '全部': {
                 if (await guardGroupCooldown(ctx, event, '全部')) return;
 
-                await sendReply(ctx, event, '🔄 正在检查并更新所有插件，请稍候...');
+                await sendReply(ctx, event, '🔄 正在读取可更新插件，请稍候...');
 
                 try {
-                    const updates = await checkAllUpdates();
+                    const updates = getStoreUpdatesFromRegistry();
 
                     if (updates.length === 0) {
                         await sendReply(ctx, event, '✅ 所有插件均为最新版本，无需更新');
                     } else {
                         const results: string[] = [];
-                        for (const update of updates) {
-                            const ok = await installPlugin(update);
-                            results.push(`${update.displayName}: ${ok ? '✅ 成功' : '❌ 失败'}`);
+                        for (const item of updates) {
+                            const ok = await installPlugin(item.update);
+                            if (ok) {
+                                markStoreUpdateInstalled(item.pluginName, item.update.latestVersion);
+                            }
+                            results.push(`[#${item.index}] ${item.displayName}: ${ok ? '✅ 成功' : '❌ 失败'}`);
                         }
                         await sendReply(ctx, event, [`[= 插件更新完成 =]`, ...results].join('\n'));
                     }

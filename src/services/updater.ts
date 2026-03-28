@@ -10,6 +10,7 @@ import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import type { PluginInfo, UpdateInfo, MirrorPingResult, StoreMeta } from '../types';
 import { pluginState } from '../core/state';
+import { refreshRegistryWithStoreUpdates, syncPluginNumbering } from './update-registry';
 
 // 插件商店索引源将从 pluginState.config.pluginSources 动态读取
 
@@ -378,6 +379,7 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
 
     const ignored = new Set(pluginState.config.ignoredPlugins);
     const updates: UpdateInfo[] = [];
+    const storeUpdatesByInstalledName = new Map<string, UpdateInfo>();
 
     for (const plugin of installed) {
         if (ignored.has(plugin.name)) continue;
@@ -393,7 +395,7 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
         if (!storeInfo) continue;
 
         if (isNewer(plugin.currentVersion, storeInfo.version)) {
-            updates.push({
+            const updateItem: UpdateInfo = {
                 pluginName: storeInfo.id,
                 displayName: plugin.displayName,
                 currentVersion: plugin.currentVersion,
@@ -402,9 +404,13 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
                 changelog: '',
                 publishedAt: '',
                 source: storeInfo.source,
-            });
+            };
+            updates.push(updateItem);
+            storeUpdatesByInstalledName.set(plugin.name, updateItem);
         }
     }
+
+    refreshRegistryWithStoreUpdates(installed, storeUpdatesByInstalledName);
 
     pluginState.availableUpdates = updates;
     pluginState.lastCheckTime = Date.now();
@@ -478,9 +484,17 @@ export async function checkSinglePlugin(pluginName: string): Promise<UpdateInfo 
             source: storeInfo.source,
         };
         pluginState.availableUpdates.push(update);
+
+        const installedList = getInstalledFromManager();
+        const map = new Map<string, UpdateInfo>();
+        map.set(pluginName, update);
+        refreshRegistryWithStoreUpdates(installedList, map);
+
         pluginState.logger.info(`${pluginName}: ${currentVersion} → ${storeInfo.version} 有更新`);
         return update;
     }
+
+    syncPluginNumbering(getInstalledFromManager());
 
     pluginState.logger.info(`${pluginName} 已是最新 (${currentVersion})`);
     return null;
@@ -815,7 +829,9 @@ export async function installPlugin(update: UpdateInfo): Promise<boolean> {
 
 /** 获取已安装插件列表（供 API 使用） */
 export async function getInstalledPlugins(): Promise<PluginInfo[]> {
-    return getInstalledFromManager();
+    const installed = getInstalledFromManager();
+    syncPluginNumbering(installed);
+    return installed;
 }
 
 /** 给镜像打标签 */

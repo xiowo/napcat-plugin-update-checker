@@ -2698,7 +2698,7 @@
                   <div class="text-xs" style="color: var(--text-secondary)">开启后会在 Git 推送设置中新增推送列表，自动监听提交与发行</div>
                 </div>
                 <label class="toggle-switch">
-                  <input type="checkbox" x-model="pluginSourceEditUseGit">
+                  <input type="checkbox" x-model="pluginSourceEditUseGit" @change="onPluginSourceEditGitToggle()">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -2713,6 +2713,17 @@
                 <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送列表</label>
                 <input type="text" class="input w-full" value="AA狐狸插件更新检测" readonly disabled>
                 <p class="text-xs mt-1" style="color: var(--text-secondary)">开启后会自动加入该默认推送列表</p>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium" style="color: var(--text)">禁用商店源检测</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">开启后该插件不会参与商店源版本检测</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" x-model="pluginSourceEditDisableStoreCheck">
+                  <span class="toggle-slider"></span>
+                </label>
               </div>
             </div>
           </div>
@@ -2975,6 +2986,7 @@
         pluginSourceEditValue: '',
         pluginSourceEditOptions: [],
         pluginSourceEditUseGit: false,
+        pluginSourceEditDisableStoreCheck: false,
         pluginSourceEditRepoUrl: '',
         showGitApiConfigModal: false,
         showGitPushModal: false,
@@ -4915,14 +4927,21 @@
         },
 
         canSavePluginSourceEdit() {
+          if (!this.pluginSourceEditTarget) return false;
+
           const currentSource = this.getInstalledPluginCurrentSource(this.pluginSourceEditTarget);
           const canSwitchSource = this.pluginSourceEditOptions.length > 0
             && !!this.pluginSourceEditValue
             && this.pluginSourceEditValue !== currentSource;
-          if (canSwitchSource) return true;
-          if (!this.pluginSourceEditUseGit) return false;
-          const parsed = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
-          return !!parsed;
+
+          const pluginName = this.pluginSourceEditTarget.name;
+          const currentDisableStoreCheck = this.config.ignoredPlugins.includes(pluginName);
+          const storeCheckChanged = this.pluginSourceEditDisableStoreCheck !== currentDisableStoreCheck;
+
+          const canEnableGit = this.pluginSourceEditUseGit
+            && !!this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
+
+          return canSwitchSource || storeCheckChanged || canEnableGit;
         },
 
         openPluginSourceEdit(installedPlugin) {
@@ -4933,6 +4952,7 @@
             this.pluginSourceEditValue = this.pluginSourceEditOptions[0].source;
           }
           this.pluginSourceEditUseGit = false;
+          this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
           this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
           this.showPluginSourceEditModal = true;
         },
@@ -4943,7 +4963,14 @@
           this.pluginSourceEditValue = '';
           this.pluginSourceEditOptions = [];
           this.pluginSourceEditUseGit = false;
+          this.pluginSourceEditDisableStoreCheck = false;
           this.pluginSourceEditRepoUrl = '';
+        },
+
+        onPluginSourceEditGitToggle() {
+          if (this.pluginSourceEditUseGit) {
+            this.pluginSourceEditDisableStoreCheck = true;
+          }
         },
 
         async savePluginSourceEdit() {
@@ -4951,6 +4978,7 @@
 
           let switchedSource = false;
           let createdGitPush = false;
+          let changedStoreCheck = false;
 
           const currentSource = this.getInstalledPluginCurrentSource(this.pluginSourceEditTarget);
           if (this.pluginSourceEditOptions.length > 0 && this.pluginSourceEditValue && this.pluginSourceEditValue !== currentSource) {
@@ -5056,7 +5084,25 @@
             createdGitPush = true;
           }
 
-          if (!switchedSource && !createdGitPush) {
+          const pluginName = this.pluginSourceEditTarget.name;
+          const currentDisableStoreCheck = this.config.ignoredPlugins.includes(pluginName);
+          if (this.pluginSourceEditDisableStoreCheck !== currentDisableStoreCheck) {
+            if (this.pluginSourceEditDisableStoreCheck) {
+              await this.api('/ignored-plugins', 'POST', { pluginName });
+              if (!this.config.ignoredPlugins.includes(pluginName)) {
+                this.config.ignoredPlugins.push(pluginName);
+              }
+            } else {
+              const idx = this.config.ignoredPlugins.indexOf(pluginName);
+              if (idx >= 0) {
+                await this.api(`/ignored-plugins/${idx}`, 'DELETE');
+                this.config.ignoredPlugins.splice(idx, 1);
+              }
+            }
+            changedStoreCheck = true;
+          }
+
+          if (!switchedSource && !createdGitPush && !changedStoreCheck) {
             showToast('没有可保存的修改', 'info');
             return;
           }
@@ -5065,9 +5111,13 @@
             await this.fetchInstalledPlugins();
           }
 
-          if (switchedSource && createdGitPush) showToast('已切换商店源并启用 Git 检测更新', 'success');
+          if (switchedSource && createdGitPush && changedStoreCheck) showToast('已切换商店源、启用 Git 检测并禁用商店检测', 'success');
+          else if (switchedSource && createdGitPush) showToast('已切换商店源并启用 Git 检测更新', 'success');
+          else if (createdGitPush && changedStoreCheck) showToast('已启用 Git 检测并更新商店检测开关', 'success');
+          else if (switchedSource && changedStoreCheck) showToast('商店源与检测开关已更新', 'success');
           else if (switchedSource) showToast('商店源切换成功', 'success');
           else if (createdGitPush) showToast('已在 Git 推送设置新增推送列表（监听提交与发行）', 'success');
+          else if (changedStoreCheck) showToast('商店源检测开关已更新', 'success');
 
           this.closePluginSourceEdit();
         },

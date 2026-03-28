@@ -6,6 +6,7 @@
 import { pluginState } from '../core/state';
 import { DEFAULT_CONFIG } from '../config';
 import { checkAllUpdates, installPlugin } from './updater';
+import { getStoreUpdatesFromRegistry, markStoreUpdateInstalled } from './update-registry';
 import { ensureGitDefaultBranches, runGitPushCheck } from './git-updater';
 import type { UpdateInfo } from '../types';
 
@@ -63,10 +64,40 @@ async function sendTextMessage(targetId: string, text: string, isGroup: boolean)
     });
 }
 
+interface UpdateIndexLookup {
+    byStorePluginName: Map<string, number>;
+    byInstalledPluginName: Map<string, number>;
+    byDisplayVersion: Map<string, number>;
+}
+
+function buildUpdateIndexLookup(): UpdateIndexLookup {
+    const list = getStoreUpdatesFromRegistry();
+    const byStorePluginName = new Map<string, number>();
+    const byInstalledPluginName = new Map<string, number>();
+    const byDisplayVersion = new Map<string, number>();
+
+    for (const item of list) {
+        byStorePluginName.set(String(item.update.pluginName || ''), item.index);
+        byInstalledPluginName.set(String(item.pluginName || ''), item.index);
+        byDisplayVersion.set(`${item.displayName}@@${item.update.latestVersion}`, item.index);
+    }
+
+    return { byStorePluginName, byInstalledPluginName, byDisplayVersion };
+}
+
+function resolveUpdateIndex(update: UpdateInfo, lookup: UpdateIndexLookup): number | null {
+    const keyByDisplayVersion = `${update.displayName}@@${update.latestVersion}`;
+    const index = lookup.byStorePluginName.get(String(update.pluginName || ''))
+        ?? lookup.byInstalledPluginName.get(String(update.pluginName || ''))
+        ?? lookup.byDisplayVersion.get(keyByDisplayVersion);
+
+    return typeof index === 'number' && index > 0 ? index : null;
+}
+
 /** 构建单个插件的更新通知文本 */
-function buildSingleNotifyText(update: UpdateInfo): string {
+function buildSingleNotifyText(update: UpdateInfo, index: number | null): string {
     const lines: string[] = [];
-    lines.push(`📦 ${update.displayName}`);
+    lines.push(`📦 ${index ? `[#${index}] ` : ''}${update.displayName}`);
     lines.push(`   ${update.currentVersion} → ${update.latestVersion}`);
     if (update.publishedAt) {
         lines.push(`   发布于 ${new Date(update.publishedAt).toLocaleString('zh-CN')}`);
@@ -82,12 +113,16 @@ function buildSingleNotifyText(update: UpdateInfo): string {
 function buildNotifyText(updates: UpdateInfo[]): string {
     const lines: string[] = ['🔄 插件更新提醒', ''];
     const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
+    const indexLookup = buildUpdateIndexLookup();
+
     for (const u of updates) {
-        lines.push(buildSingleNotifyText(u));
+        lines.push(buildSingleNotifyText(u, resolveUpdateIndex(u, indexLookup)));
         lines.push('');
     }
+
     if (pluginState.config.updateMode === 'notify') {
-        lines.push(`发送 "${prefix} 全部" 执行更新`);
+        lines.push(`发送 "${prefix}全部" 执行更新`);
+        lines.push(`发送 "${prefix}编号1" 指定更新对应编号插件`);
     }
     return lines.join('\n');
 }
@@ -124,14 +159,19 @@ function createForwardNode(userId: string, nickname: string, text: string): unkn
 function buildForwardNodes(updates: UpdateInfo[]): unknown[] {
     const { userId, nickname } = getForwardIdentity();
     const result: unknown[] = [createForwardNode(userId, nickname, '🔄 插件更新提醒')];
+    const indexLookup = buildUpdateIndexLookup();
 
     for (const update of updates) {
-        result.push(createForwardNode(userId, nickname, buildSingleNotifyText(update)));
+        result.push(createForwardNode(userId, nickname, buildSingleNotifyText(update, resolveUpdateIndex(update, indexLookup))));
     }
 
     if (pluginState.config.updateMode === 'notify') {
         const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
-        result.push(createForwardNode(userId, nickname, `发送 "${prefix} 全部" 执行更新`));
+        result.push(createForwardNode(
+            userId,
+            nickname,
+            `发送 "${prefix}全部" 执行更新\n发送 "${prefix}编号1" 指定更新对应编号插件`
+        ));
     }
 
     return result;
@@ -199,11 +239,20 @@ async function pushNotification(updates: UpdateInfo[]): Promise<void> {
 /** 构建自动更新结果文本 */
 function buildUpdateResultText(result: { update: UpdateInfo; ok: boolean }[]): string {
     const lines: string[] = ['🔄 插件自动更新完成', ''];
+    const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
+    const indexLookup = buildUpdateIndexLookup();
+
     for (const item of result) {
         const u = item.update;
-        lines.push(`${item.ok ? '✅' : '❌'} ${u.displayName}`);
+        const index = resolveUpdateIndex(u, indexLookup);
+        lines.push(`${item.ok ? '✅' : '❌'} ${index ? `[#${index}] ` : ''}${u.displayName}`);
         lines.push(`   ${u.currentVersion} → ${u.latestVersion}`);
     }
+
+    lines.push('');
+    lines.push(`如需手动指定更新，发送 "${prefix}编号1"`);
+    lines.push(`如需先刷新编号库，发送 "${prefix}检查"`);
+
     return lines.join('\n');
 }
 
@@ -211,11 +260,24 @@ function buildUpdateResultText(result: { update: UpdateInfo; ok: boolean }[]): s
 function buildResultForwardNodes(result: { update: UpdateInfo; ok: boolean }[]): unknown[] {
     const { userId, nickname } = getForwardIdentity();
     const nodes: unknown[] = [createForwardNode(userId, nickname, '🔄 插件自动更新完成')];
+    const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
+    const indexLookup = buildUpdateIndexLookup();
 
     for (const item of result) {
         const u = item.update;
-        nodes.push(createForwardNode(userId, nickname, `${item.ok ? '✅' : '❌'} ${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`));
+        const index = resolveUpdateIndex(u, indexLookup);
+        nodes.push(createForwardNode(
+            userId,
+            nickname,
+            `${item.ok ? '✅' : '❌'} ${index ? `[#${index}] ` : ''}${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`
+        ));
     }
+
+    nodes.push(createForwardNode(
+        userId,
+        nickname,
+        `如需手动指定更新，发送 "${prefix}编号1"\n如需先刷新编号库，发送 "${prefix}检查"`
+    ));
 
     return nodes;
 }
@@ -280,7 +342,11 @@ export async function runScheduledCheck(): Promise<void> {
             const ok = await installPlugin(update);
             results.push({ update, ok });
             // 更新成功后从已通知集合中移除
-            if (ok) pluginState.notifiedUpdates.delete(`${update.pluginName}@${update.latestVersion}`);
+            if (ok) {
+                pluginState.notifiedUpdates.delete(`${update.pluginName}@${update.latestVersion}`);
+                // 自动更新成功后立即同步编号库版本
+                markStoreUpdateInstalled(update.pluginName, update.latestVersion);
+            }
         }
 
         // 更新完成后回报版本变动；多条使用合并转发

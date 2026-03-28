@@ -5,6 +5,7 @@
 import { pluginState } from '../core/state';
 import type { GitPushConfig, GitPushRepoConfig, GitUpdateCache, GitProviderName } from '../types';
 import { getDefaultBranch, getRepositoryData } from './git-api';
+import { markGitDetectedVersion } from './update-registry';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -870,12 +871,17 @@ async function collectRepoUpdates(
                 const lastSha = cache.commits[key];
                 if (!lastSha) {
                     cache.commits[key] = sha;
-                    if (options?.forcePush && sha) updates.push(item);
+                    if (options?.forcePush && sha) {
+                        updates.push(item);
+                        markGitDetectedVersion(repoPath, String(sha), 'git-commit');
+                    }
                 } else if (sha && sha !== lastSha) {
                     cache.commits[key] = sha;
                     updates.push(item);
+                    markGitDetectedVersion(repoPath, String(sha), 'git-commit');
                 } else if (options?.forcePush && sha) {
                     updates.push(item);
+                    markGitDetectedVersion(repoPath, String(sha), 'git-commit');
                 }
             }
         }
@@ -907,14 +913,17 @@ async function collectRepoUpdates(
                 if (options?.forcePush && id) {
                     releaseItem.branch = releaseBranch || undefined;
                     updates.push(releaseItem);
+                    markGitDetectedVersion(repoPath, String(releaseItem.tag || id), 'git-release');
                 }
             } else if (id && id !== lastId) {
                 cache.releases[key] = id;
                 releaseItem.branch = releaseBranch || undefined;
                 updates.push(releaseItem);
+                markGitDetectedVersion(repoPath, String(releaseItem.tag || id), 'git-release');
             } else if (options?.forcePush && id) {
                 releaseItem.branch = releaseBranch || undefined;
                 updates.push(releaseItem);
+                markGitDetectedVersion(repoPath, String(releaseItem.tag || id), 'git-release');
             }
         }
     }
