@@ -1779,7 +1779,11 @@
                   <button @click="debugGitPush(push.id)" class="btn btn-secondary text-sm">立即检测并推送</button>
                   <button @click="editGitPush(index)" class="btn btn-secondary text-sm">编辑</button>
                   <button @click="removeGitPush(index)" class="btn text-sm"
-                    style="background:#fee2e2;color:#991b1b;">删除</button>
+                    :disabled="String(push.name || '').trim() === 'AA狐狸插件更新检测'"
+                    :style="String(push.name || '').trim() === 'AA狐狸插件更新检测'
+                      ? 'background:#f3f4f6;color:#9ca3af;cursor:not-allowed;'
+                      : 'background:#fee2e2;color:#991b1b;'"
+                    :title="String(push.name || '').trim() === 'AA狐狸插件更新检测' ? '默认推送列表不可删除' : ''">删除</button>
                 </div>
               </div>
 
@@ -2701,7 +2705,8 @@
 
               <div>
                 <label class="block text-sm mb-1" style="color: var(--text-secondary)">插件仓库地址</label>
-                <input type="text" class="input w-full" :value="pluginSourceEditRepoUrl || '未检测到仓库地址'" readonly disabled>
+                <input type="text" class="input w-full" x-model="pluginSourceEditRepoUrl"
+                  :placeholder="'未检测到仓库地址，可手动输入例如：https://github.com/owner/repo'">
               </div>
 
               <div>
@@ -4423,7 +4428,7 @@
           return {
             id: '',
             name: '',
-            enabled: true,
+            enabled: false,
             notifyGroupsStr: '',
             notifyUsersStr: '',
             renderMode: this.gitRenderMode || 'text',
@@ -4635,6 +4640,14 @@
         },
 
         async removeGitPush(index) {
+          const target = this.gitPushConfigs[index];
+          if (!target) return;
+
+          if (String(target.name || '').trim() === 'AA狐狸插件更新检测') {
+            showToast('默认推送列表不可删除', 'info');
+            return;
+          }
+
           const next = [...this.gitPushConfigs];
           next.splice(index, 1);
           try {
@@ -4991,9 +5004,9 @@
               repoUrl: parsed.repoUrl,
               owner: parsed.owner,
               repo: parsed.repo,
-              commitEnabled: true,
+              commitEnabled: false,
               commitBranch: '',
-              releaseEnabled: true,
+              releaseEnabled: false,
               releaseBranch: ''
             };
 
@@ -5011,8 +5024,7 @@
                   provider: parsed.provider,
                   repoUrl: parsed.repoUrl,
                   owner: parsed.owner,
-                  repo: parsed.repo,
-                  releaseEnabled: true
+                  repo: parsed.repo
                 };
               } else {
                 repos.push(newRepo);
@@ -5021,9 +5033,9 @@
               next[existingIndex] = {
                 ...oldPush,
                 name: oldPush.name || pushName,
-                enabled: oldPush.enabled !== false,
-                notifyGroups: Array.isArray(oldPush.notifyGroups) ? oldPush.notifyGroups : (this.config.notifyGroups || []),
-                notifyUsers: Array.isArray(oldPush.notifyUsers) ? oldPush.notifyUsers : (this.config.notifyUsers || []),
+                enabled: oldPush.enabled === true,
+                notifyGroups: Array.isArray(oldPush.notifyGroups) ? oldPush.notifyGroups : [],
+                notifyUsers: Array.isArray(oldPush.notifyUsers) ? oldPush.notifyUsers : [],
                 renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
                 repos
               };
@@ -5031,9 +5043,9 @@
               next.push({
                 id: `plugin-git-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
                 name: pushName,
-                enabled: true,
-                notifyGroups: this.config.notifyGroups || [],
-                notifyUsers: this.config.notifyUsers || [],
+                enabled: false,
+                notifyGroups: [],
+                notifyUsers: [],
                 renderMode: this.gitRenderMode || 'text',
                 repos: [newRepo]
               });
