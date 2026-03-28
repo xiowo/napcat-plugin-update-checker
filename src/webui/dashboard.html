@@ -2158,14 +2158,6 @@
               </label>
             </div>
 
-            <div class="flex flex-col gap-2">
-              <!-- 黑名单用户输入框 -->
-              <label class="text-sm font-medium" style="color: var(--text-secondary)">
-                黑名单用户 (填QQ号，逗号分隔)
-              </label>
-              <input type="text" x-model="config.blacklistStr" @input="markNonSwitchChanged()"
-                @change="markNonSwitchChanged()" placeholder="例如：123456, 123456" class="input flex-1">
-            </div>
           </div>
         </div>
 
@@ -2857,8 +2849,6 @@
         cooldownSeconds: 60,
         masterQQ: '',
         silentNoPermission: false,
-        blacklist: [],
-        blacklistStr: '',
         groupConfigs: {},
         updateMode: 'notify',
         enableSchedule: true,
@@ -3569,8 +3559,6 @@
             const userStr = (this.config.notifyUsersStr || '').trim();
             this.config.notifyGroups = groupStr ? groupStr.split(/[,，\s]+/).filter(v => v !== '') : [];
             this.config.notifyUsers = userStr ? userStr.split(/[,，\s]+/).filter(v => v !== '') : [];
-            const blacklistStr = (this.config.blacklistStr || '').trim();
-            this.config.blacklist = blacklistStr ? blacklistStr.split(/[,，\s]+/).filter(v => v !== '') : [];
 
             await this.api('/mirrors', 'POST', {
               enabled: this.config.enabled,
@@ -3578,7 +3566,6 @@
               cooldownSeconds: this.config.cooldownSeconds,
               masterQQ: this.config.masterQQ,
               silentNoPermission: this.config.silentNoPermission,
-              blacklist: this.config.blacklist,
               updateMode: this.config.updateMode,
               enableSchedule: this.config.enableSchedule,
               checkInterval: this.config.checkInterval,
@@ -4380,7 +4367,6 @@
                 notifyGroupsStr: this.config.notifyGroupsStr,
                 notifyUsersStr: this.config.notifyUsersStr,
                 masterQQ: this.config.masterQQ,
-                blacklistStr: this.config.blacklistStr,
               }
               : null;
 
@@ -4388,7 +4374,6 @@
             nextConfig.notifyGroupsStr = (nextConfig.notifyGroups || []).join(', ');
             nextConfig.notifyUsersStr = (nextConfig.notifyUsers || []).join(', ');
             nextConfig.masterQQ = nextConfig.masterQQ || '';
-            nextConfig.blacklistStr = (nextConfig.blacklist || []).join(', ');
 
             if (keepLocalDraft) {
               Object.assign(nextConfig, localDraft);
@@ -4716,7 +4701,7 @@
           // 只检查非开关类的配置项
           const keysToCheck = [
             'commandPrefix', 'cooldownSeconds', 'updateMode', 'checkInterval',
-            'notifyGroupsStr', 'notifyUsersStr', 'masterQQ', 'blacklistStr'
+            'notifyGroupsStr', 'notifyUsersStr', 'masterQQ'
           ];
           for (const key of keysToCheck) {
             if (String(this.config[key]) !== String(this.originalConfig[key])) {

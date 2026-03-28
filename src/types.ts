@@ -23,8 +23,6 @@ export interface PluginConfig {
     masterQQ: string;
     /** 无权限时静默（不回复权限提示） */
     silentNoPermission?: boolean;
-    /** 黑名单用户列表（QQ 号字符串） */
-    blacklist: string[];
     /** 按群的单独配置 */
     groupConfigs: Record<string, GroupConfig>;
     /** 更新模式：notify 仅通知，auto 自动更新（仅推送更新结果，不再发送发现更新提醒） */

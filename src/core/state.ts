@@ -36,8 +36,6 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
     if (typeof raw.masterQQ === 'string') out.masterQQ = raw.masterQQ.trim();
     if (typeof raw.silentNoPermission === 'boolean') out.silentNoPermission = raw.silentNoPermission;
-    if (typeof raw.blacklist === 'string') out.blacklist = raw.blacklist.split(',').map((s: string) => s.trim()).filter(Boolean);
-    else if (Array.isArray(raw.blacklist)) out.blacklist = raw.blacklist.map(String).map((s: string) => s.trim()).filter(Boolean);
 
     // 更新相关配置清洗
     if (raw.updateMode === 'notify') out.updateMode = 'notify';
@@ -315,38 +313,6 @@ class PluginState {
      */
     isGroupEnabled(groupId: string): boolean {
         return this.config.groupConfigs[groupId]?.enabled !== false;
-    }
-
-    /**
-     * 检查用户是否在黑名单中
-     */
-    isBlacklisted(userId: string): boolean {
-        return this.config.blacklist.includes(userId);
-    }
-
-    /**
-     * 添加用户到黑名单
-     */
-    addToBlacklist(userId: string): void {
-        const normalized = String(userId).trim();
-        if (!normalized) return;
-        if (!this.config.blacklist.includes(normalized)) {
-            this.config.blacklist.push(normalized);
-            this.saveConfig();
-        }
-    }
-
-    /**
-     * 从黑名单移除用户
-     */
-    removeFromBlacklist(userId: string): void {
-        const normalized = String(userId).trim();
-        if (!normalized) return;
-        const next = this.config.blacklist.filter(id => id !== normalized);
-        if (next.length !== this.config.blacklist.length) {
-            this.config.blacklist = next;
-            this.saveConfig();
-        }
     }
 
     // ==================== 统计 ====================

@@ -604,17 +604,6 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             if (body?.masterQQ !== undefined) pluginState.config.masterQQ = String(body.masterQQ || '').trim();
             if (body?.silentNoPermission !== undefined) pluginState.config.silentNoPermission = Boolean(body.silentNoPermission);
 
-            if (body?.blacklist !== undefined) {
-                if (Array.isArray(body.blacklist)) {
-                    pluginState.config.blacklist = body.blacklist.map((v: any) => String(v).trim()).filter(Boolean);
-                } else {
-                    pluginState.config.blacklist = String(body.blacklist || '')
-                        .split(/[,，\s]+/)
-                        .map((v: string) => v.trim())
-                        .filter(Boolean);
-                }
-            }
-
             if (body?.updateMode !== undefined) pluginState.config.updateMode = body.updateMode;
             if (body?.enableSchedule !== undefined) pluginState.config.enableSchedule = body.enableSchedule;
             if (body?.checkInterval !== undefined) pluginState.config.checkInterval = body.checkInterval;

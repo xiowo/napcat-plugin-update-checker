@@ -13,7 +13,6 @@ export const DEFAULT_CONFIG: PluginConfig = {
     cooldownSeconds: 60,
     masterQQ: '',
     silentNoPermission: false,
-    blacklist: [],
     groupConfigs: {},
     // 更新相关配置
     updateMode: 'notify',

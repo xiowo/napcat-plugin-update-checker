@@ -212,11 +212,6 @@ const PERMISSION_NO_MASTER_MSG = '❌ 没有权限，请先配置主人';
 function checkPermission(event: OB11Message): boolean {
     const userId = String(event.user_id);
 
-    // 检查黑名单
-    if (pluginState.isBlacklisted(userId)) {
-        return false;
-    }
-
     const masterQQs = String(pluginState.config.masterQQ || '')
         .split(',')
         .map(qq => qq.trim())
@@ -260,11 +255,6 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
         const rawMessage = event.raw_message || '';
 
         pluginState.ctx.logger.debug(`收到消息: ${rawMessage} | 类型: ${event.message_type}`);
-
-        // 黑名单忽略
-        if (pluginState.isBlacklisted(String(event.user_id))) {
-            return;
-        }
 
         // 统一命令前缀与命令解析
         const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
