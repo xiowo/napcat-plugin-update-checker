@@ -2384,6 +2384,10 @@
                     <span style="color: var(--text)"
                       x-text="config.ignoredPlugins.includes(plugin.name) ? '是' : '否'"></span>
                   </div>
+                  <div>Git 检测更新：
+                    <span style="color: var(--text)"
+                      x-text="hasGitPushRepoForPlugin(plugin) ? '已启用' : '未启用'"></span>
+                  </div>
                 </div>
               </div>
             </template>
@@ -2632,7 +2636,7 @@
         <div class="modal-panel max-w-xl p-4 sm:p-6 animate-fade-in">
           <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
             <div>
-              <h3 class="font-bold text-lg" style="color: var(--text)">编辑插件商店源</h3>
+              <h3 class="font-bold text-lg" style="color: var(--text)">编辑插件设置</h3>
               <p class="text-xs mt-1" style="color: var(--text-secondary)"
                 x-text="pluginSourceEditTarget ? ('插件：' + (pluginSourceEditTarget.displayName || pluginSourceEditTarget.name)) : ''"></p>
             </div>
@@ -2665,12 +2669,36 @@
                 </template>
               </div>
             </div>
+
+            <div class="section-block space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium" style="color: var(--text)">使用 Git 检测更新</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">开启后会在 Git 推送设置中新增推送列表，自动监听提交与发行</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" x-model="pluginSourceEditUseGit">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1" style="color: var(--text-secondary)">插件仓库地址</label>
+                <input type="text" class="input w-full" :value="pluginSourceEditRepoUrl || '未检测到仓库地址'" readonly disabled>
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送列表</label>
+                <input type="text" class="input w-full" value="AA狐狸插件更新检测" readonly disabled>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">开启后会自动加入该默认推送列表</p>
+              </div>
+            </div>
           </div>
 
           <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
             <button @click="closePluginSourceEdit()" class="btn btn-secondary text-sm">取消</button>
             <button @click="savePluginSourceEdit()" class="btn btn-primary text-sm"
-              :disabled="pluginSourceEditOptions.length === 0 || !pluginSourceEditValue">保存并切换</button>
+              :disabled="!canSavePluginSourceEdit()">保存</button>
           </div>
         </div>
       </div>
@@ -2924,6 +2952,8 @@
         pluginSourceEditTarget: null,
         pluginSourceEditValue: '',
         pluginSourceEditOptions: [],
+        pluginSourceEditUseGit: false,
+        pluginSourceEditRepoUrl: '',
         showGitApiConfigModal: false,
         showGitPushModal: false,
         showGitRepoModal: false,
@@ -4458,20 +4488,13 @@
         handleRepoUrlInput(form = null) {
           const targetForm = form || this.gitRepoForm;
           if (!targetForm || !targetForm.repoUrl) return;
-          try {
-            const url = new URL(targetForm.repoUrl.trim());
-            const host = url.hostname.toLowerCase();
-            const parts = url.pathname.split('/').filter(Boolean);
-            if (parts.length >= 2) {
-              targetForm.owner = parts[0];
-              targetForm.repo = parts[1].replace(/\.git$/, '');
-            }
-            if (host.includes('github.com')) targetForm.provider = 'GitHub';
-            else if (host.includes('gitee.com')) targetForm.provider = 'Gitee';
-            else if (host.includes('gitcode.com')) targetForm.provider = 'Gitcode';
-            else if (host.includes('cnb.cool')) targetForm.provider = 'CNB';
-            else if (host.includes('gitea')) targetForm.provider = 'Gitea';
-          } catch (e) { }
+
+          const parsed = this.parseGitRepoInfoFromUrl(targetForm.repoUrl);
+          if (!parsed) return;
+
+          targetForm.provider = parsed.provider;
+          targetForm.owner = parsed.owner;
+          targetForm.repo = parsed.repo;
         },
 
         saveGitRepoItem() {
@@ -4737,6 +4760,136 @@
           return '-';
         },
 
+        getMarketItemRepositoryUrl(marketItem) {
+          if (!marketItem) return '';
+
+          const candidateList = [];
+          if (typeof marketItem.repository === 'string') {
+            candidateList.push(marketItem.repository);
+          } else if (marketItem.repository && typeof marketItem.repository === 'object') {
+            candidateList.push(marketItem.repository.url || '');
+          }
+
+          candidateList.push(marketItem.homepage || '');
+
+          for (const candidate of candidateList) {
+            const text = String(candidate || '').trim();
+            if (!text) continue;
+            if (this.parseGitRepoInfoFromUrl(text)) return text;
+          }
+
+          return '';
+        },
+
+        getInstalledPluginRepoUrl(installedPlugin) {
+          if (!installedPlugin) return '';
+
+          const directCandidates = [
+            installedPlugin.repositoryUrl,
+            installedPlugin.homepage
+          ];
+
+          for (const candidate of directCandidates) {
+            const text = String(candidate || '').trim();
+            if (!text) continue;
+            if (this.parseGitRepoInfoFromUrl(text)) return text;
+          }
+
+          const options = this.getInstalledPluginSourceOptions(installedPlugin);
+          for (const option of options) {
+            const fromMarket = this.getMarketItemRepositoryUrl(option);
+            if (fromMarket) return fromMarket;
+          }
+
+          return '';
+        },
+
+        normalizeGitUrlInput(rawUrl) {
+          let text = String(rawUrl || '').trim();
+          if (!text) return '';
+
+          text = text.replace(/^git\+/i, '');
+
+          // 支持 SCP 风格：git@host:owner/repo.git
+          const scpMatch = text.match(/^git@([^:\/]+):(.+)$/i);
+          if (scpMatch) {
+            return `https://${scpMatch[1]}/${scpMatch[2]}`;
+          }
+
+          return text;
+        },
+
+        parseGitRepoInfoFromUrl(rawUrl) {
+          if (!rawUrl) return null;
+
+          const normalized = this.normalizeGitUrlInput(rawUrl);
+          if (!normalized) return null;
+
+          let host = '';
+          let owner = '';
+          let repo = '';
+
+          try {
+            const url = new URL(normalized);
+            host = (url.hostname || '').toLowerCase();
+            const parts = (url.pathname || '').split('/').filter(Boolean);
+            if (parts.length >= 2) {
+              owner = parts[0];
+              repo = parts[1];
+            }
+          } catch {
+            const match = normalized.match(/^(?:https?:\/\/|ssh:\/\/)?([^/:]+)[/:]([^/]+)\/([^/?#]+)(?:[/?#].*)?$/i);
+            if (!match) return null;
+            host = String(match[1] || '').toLowerCase();
+            owner = String(match[2] || '');
+            repo = String(match[3] || '');
+          }
+
+          repo = repo.replace(/\.git$/i, '').trim();
+          owner = owner.trim();
+
+          if (!host || !owner || !repo) return null;
+
+          let provider = 'GitHub';
+          if (host.includes('gitee.com')) provider = 'Gitee';
+          else if (host.includes('gitcode.com')) provider = 'Gitcode';
+          else if (host.includes('cnb.cool')) provider = 'CNB';
+          else if (host.includes('gitea')) provider = 'Gitea';
+
+          return {
+            provider,
+            owner,
+            repo,
+            repoUrl: `https://${host}/${owner}/${repo}`
+          };
+        },
+
+        hasGitPushRepoForPlugin(installedPlugin) {
+          const repoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
+          const parsed = this.parseGitRepoInfoFromUrl(repoUrl);
+          if (!parsed) return false;
+
+          const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+          return (this.gitPushConfigs || []).some(push =>
+            this.getGitPushRepos(push).some(repo => {
+              const repoPath = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+              const repoUrlText = String(repo.repoUrl || '').toLowerCase();
+              return repoPath === targetPath || repoUrlText.includes(targetPath);
+            })
+          );
+        },
+
+        canSavePluginSourceEdit() {
+          const currentSource = this.getInstalledPluginCurrentSource(this.pluginSourceEditTarget);
+          const canSwitchSource = this.pluginSourceEditOptions.length > 0
+            && !!this.pluginSourceEditValue
+            && this.pluginSourceEditValue !== currentSource;
+          if (canSwitchSource) return true;
+          if (!this.pluginSourceEditUseGit) return false;
+          const parsed = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
+          return !!parsed;
+        },
+
         openPluginSourceEdit(installedPlugin) {
           this.pluginSourceEditTarget = installedPlugin;
           this.pluginSourceEditOptions = this.getInstalledPluginSourceOptions(installedPlugin);
@@ -4744,6 +4897,8 @@
           if (this.pluginSourceEditOptions.length > 0 && !this.pluginSourceEditOptions.find(v => v.source === this.pluginSourceEditValue)) {
             this.pluginSourceEditValue = this.pluginSourceEditOptions[0].source;
           }
+          this.pluginSourceEditUseGit = false;
+          this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
           this.showPluginSourceEditModal = true;
         },
 
@@ -4752,38 +4907,134 @@
           this.pluginSourceEditTarget = null;
           this.pluginSourceEditValue = '';
           this.pluginSourceEditOptions = [];
+          this.pluginSourceEditUseGit = false;
+          this.pluginSourceEditRepoUrl = '';
         },
 
         async savePluginSourceEdit() {
-          if (!this.pluginSourceEditTarget || !this.pluginSourceEditValue) return;
-          const selected = this.pluginSourceEditOptions.find(item => item.source === this.pluginSourceEditValue);
-          if (!selected || !selected.downloadUrl) {
-            showToast('该来源缺少下载地址，无法切换', 'error');
+          if (!this.pluginSourceEditTarget) return;
+
+          let switchedSource = false;
+          let createdGitPush = false;
+
+          const currentSource = this.getInstalledPluginCurrentSource(this.pluginSourceEditTarget);
+          if (this.pluginSourceEditOptions.length > 0 && this.pluginSourceEditValue && this.pluginSourceEditValue !== currentSource) {
+            const selected = this.pluginSourceEditOptions.find(item => item.source === this.pluginSourceEditValue);
+            if (selected && selected.downloadUrl) {
+              let mirror = '';
+              if (this.config.selectedDownloadMirror && this.config.selectedDownloadMirror !== 'direct') {
+                mirror = this.config.selectedDownloadMirror;
+              } else if (this.downloadMirrors && this.downloadMirrors.length > 0 && this.config.selectedDownloadMirror !== 'direct') {
+                mirror = this.downloadMirrors[0];
+              }
+
+              await this.api('/install-plugin', 'POST', {
+                pluginName: selected.id || selected.name,
+                displayName: selected.displayName || selected.name,
+                version: selected.version,
+                downloadUrl: selected.downloadUrl,
+                mirror: mirror,
+                source: selected.source
+              });
+              switchedSource = true;
+            } else {
+              showToast('目标商店源缺少可用下载地址，无法切换', 'error');
+              return;
+            }
+          }
+
+          if (this.pluginSourceEditUseGit) {
+            const parsed = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
+            if (!parsed) {
+              showToast('未识别到有效仓库地址，无法启用 Git 检测更新', 'error');
+              return;
+            }
+
+            const pushName = 'AA狐狸插件更新检测';
+            const next = [...(this.gitPushConfigs || [])];
+            const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+
+            const existingIndex = next.findIndex(push => {
+              const sameName = String(push.name || '').trim() === pushName;
+              const hasSameRepo = this.getGitPushRepos(push).some(repo => {
+                const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+                return pathText === targetPath;
+              });
+              return sameName || hasSameRepo;
+            });
+
+            const newRepo = {
+              id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+              provider: parsed.provider,
+              repoUrl: parsed.repoUrl,
+              owner: parsed.owner,
+              repo: parsed.repo,
+              commitBranch: '',
+              releaseEnabled: true,
+              releaseBranch: ''
+            };
+
+            if (existingIndex >= 0) {
+              const oldPush = next[existingIndex];
+              const repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+              const sameRepoIndex = repos.findIndex(repo => {
+                const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+                return pathText === targetPath;
+              });
+
+              if (sameRepoIndex >= 0) {
+                repos[sameRepoIndex] = {
+                  ...repos[sameRepoIndex],
+                  provider: parsed.provider,
+                  repoUrl: parsed.repoUrl,
+                  owner: parsed.owner,
+                  repo: parsed.repo,
+                  releaseEnabled: true
+                };
+              } else {
+                repos.push(newRepo);
+              }
+
+              next[existingIndex] = {
+                ...oldPush,
+                name: oldPush.name || pushName,
+                enabled: oldPush.enabled !== false,
+                notifyGroups: Array.isArray(oldPush.notifyGroups) ? oldPush.notifyGroups : (this.config.notifyGroups || []),
+                notifyUsers: Array.isArray(oldPush.notifyUsers) ? oldPush.notifyUsers : (this.config.notifyUsers || []),
+                renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
+                repos
+              };
+            } else {
+              next.push({
+                id: `plugin-git-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+                name: pushName,
+                enabled: true,
+                notifyGroups: this.config.notifyGroups || [],
+                notifyUsers: this.config.notifyUsers || [],
+                renderMode: this.gitRenderMode || 'text',
+                repos: [newRepo]
+              });
+            }
+
+            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+            this.gitPushConfigs = next;
+            createdGitPush = true;
+          }
+
+          if (!switchedSource && !createdGitPush) {
+            showToast('没有可保存的修改', 'info');
             return;
           }
 
-          let mirror = '';
-          if (this.config.selectedDownloadMirror && this.config.selectedDownloadMirror !== 'direct') {
-            mirror = this.config.selectedDownloadMirror;
-          } else if (this.downloadMirrors && this.downloadMirrors.length > 0 && this.config.selectedDownloadMirror !== 'direct') {
-            mirror = this.downloadMirrors[0];
+          if (switchedSource) {
+            await this.fetchInstalledPlugins();
           }
 
-          try {
-            await this.api('/install-plugin', 'POST', {
-              pluginName: selected.id || selected.name,
-              displayName: selected.displayName || selected.name,
-              version: selected.version,
-              downloadUrl: selected.downloadUrl,
-              mirror: mirror,
-              source: selected.source
-            });
-            await this.fetchInstalledPlugins();
-            showToast('商店源切换成功', 'success');
-            this.closePluginSourceEdit();
-          } catch (e) {
-            showToast('切换失败: ' + e.message, 'error');
-          }
+          if (switchedSource && createdGitPush) showToast('已切换商店源并启用 Git 检测更新', 'success');
+          else if (switchedSource) showToast('商店源切换成功', 'success');
+          else if (createdGitPush) showToast('已在 Git 推送设置新增推送列表（监听提交与发行）', 'success');
+
+          this.closePluginSourceEdit();
         },
 
         // 自动更新插件管理

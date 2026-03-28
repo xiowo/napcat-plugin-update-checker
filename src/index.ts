@@ -224,6 +224,22 @@ function buildPluginIconUrl(pluginId: string): string {
     return `/api/Plugin/Icon/${encodeURIComponent(pluginId)}`;
 }
 
+function extractRepositoryUrl(plugin: any): string {
+    try {
+        const repo = plugin?.packageJson?.repository;
+        if (!repo) return '';
+
+        if (typeof repo === 'string') return repo.trim();
+        if (typeof repo === 'object') {
+            const url = String(repo.url || '').trim();
+            return url;
+        }
+        return '';
+    } catch {
+        return '';
+    }
+}
+
 /**
  * 注册 WebUI 路由
  */
@@ -364,6 +380,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                         currentVersion: plugin.version || plugin.packageJson?.version || '0.0.0',
                         status: !plugin.enable ? 'disabled' : plugin.loaded ? 'active' : 'stopped',
                         homepage: plugin.homepage || plugin.packageJson?.homepage || '',
+                        repositoryUrl: extractRepositoryUrl(plugin),
                         icon: iconUrl
                     });
                 }
@@ -409,6 +426,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                             currentVersion: plugin.version || plugin.packageJson?.version || '0.0.0',
                             status: !plugin.enable ? 'disabled' : plugin.loaded ? 'active' : 'stopped',
                             homepage: plugin.homepage || plugin.packageJson?.homepage || '',
+                            repositoryUrl: extractRepositoryUrl(plugin),
                             icon: iconUrl
                         }
                     });
