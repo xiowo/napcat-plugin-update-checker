@@ -98,21 +98,41 @@ function joinUrl(base: string, relative: string): string {
     }
 }
 
-async function fetchJson(url: string, headers: Record<string, string>): Promise<any> {
+interface GitRequestDebugMeta {
+    repo: string;
+    branch?: string;
+}
+
+function buildDebugLine(meta: GitRequestDebugMeta, elapsed: number): string {
+    return `[Git检测] ${meta.repo} 分支=${meta.branch || '-'} 用时=${elapsed}ms`;
+}
+
+async function fetchJson(url: string, headers: Record<string, string>, meta: GitRequestDebugMeta): Promise<any> {
+    const startedAt = Date.now();
     try {
         const res = await fetch(url, { headers });
+        const elapsed = Date.now() - startedAt;
+
         if (!res.ok) {
-            pluginState.logger.warn(`Git API 请求失败: ${res.status} ${res.statusText} ${url}`);
+            pluginState.logger.warn(`Git API 请求失败: ${buildDebugLine(meta, elapsed)}`);
+            pluginState.logger.debug(buildDebugLine(meta, elapsed));
             return null;
         }
+
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-            pluginState.logger.warn(`Git API 响应非 JSON: ${url}`);
+            pluginState.logger.warn(`Git API 响应非 JSON: ${buildDebugLine(meta, elapsed)}`);
+            pluginState.logger.debug(buildDebugLine(meta, elapsed));
             return null;
         }
-        return await res.json();
+
+        const data = await res.json();
+        pluginState.logger.debug(buildDebugLine(meta, elapsed));
+        return data;
     } catch (e) {
-        pluginState.logger.warn(`Git API 请求异常: ${url}`, e);
+        const elapsed = Date.now() - startedAt;
+        pluginState.logger.warn(`Git API 请求异常: ${buildDebugLine(meta, elapsed)}`, e);
+        pluginState.logger.debug(buildDebugLine(meta, elapsed));
         return null;
     }
 }
@@ -159,7 +179,10 @@ export async function getRepositoryData(
         url.searchParams.set(key, value);
     }
 
-    return await fetchJson(url.toString(), headers);
+    return await fetchJson(url.toString(), headers, {
+        repo,
+        branch: branchOrSha || (type === 'releases' ? 'release' : '')
+    });
 }
 
 export async function getDefaultBranch(
@@ -174,7 +197,10 @@ export async function getDefaultBranch(
         ? joinUrl(apiBase, `${repo}/-/git/head`)
         : joinUrl(apiBase, `${repo}`);
 
-    const data = await fetchJson(url, headers);
+    const data = await fetchJson(url, headers, {
+        repo,
+        branch: 'default'
+    });
     if (!data) return null;
 
     if (isCNB(provider)) {
