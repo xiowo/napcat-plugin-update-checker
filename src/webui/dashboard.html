@@ -1975,13 +1975,16 @@
                           <div class="font-medium break-all" style="color: var(--text)"
                             x-text="repo.owner + '/' + repo.repo"></div>
                           <div class="text-xs" style="color: var(--text-secondary)">
-                            Commit 分支：<span x-text="repo.commitBranch || (gitAutoFetchDefaultBranch ? '自动获取' : '未设置')"></span>
+                            Commit 检测：<span x-text="repo.commitEnabled !== false ? '已开启' : '已关闭'"></span>
+                          </div>
+                          <div class="text-xs" style="color: var(--text-secondary)">
+                            Commit 分支：<span x-text="repo.commitEnabled !== false ? (repo.commitBranch || (gitAutoFetchDefaultBranch ? '自动获取' : '未设置')) : '未启用'"></span>
                           </div>
                           <div class="text-xs" style="color: var(--text-secondary)">
                             Release 检测：<span x-text="repo.releaseEnabled ? '已开启' : '已关闭'"></span>
                           </div>
                           <div class="text-xs" style="color: var(--text-secondary)">
-                            Release 分支：<span x-text="repo.releaseEnabled ? (repo.releaseBranch || repo.commitBranch || '跟随默认提交分支') : '未启用'"></span>
+                            Release 分支：<span x-text="repo.releaseEnabled ? (repo.releaseBranch || (repo.commitEnabled !== false ? '使用提交配置分支' : '自动获取')) : '未启用'"></span>
                           </div>
                         </div>
                         <div class="flex flex-col items-end justify-between gap-3 shrink-0">
@@ -2048,10 +2051,24 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm mb-1 text-slate-500">Commit 检测分支</label>
-                  <input type="text" x-model="gitRepoForm.commitBranch" class="input w-full"
-                    :placeholder="gitAutoFetchDefaultBranch ? '留空则自动获取远程默认分支' : '例如：main'">
+                <div class="section-block space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <label class="block text-sm text-slate-500">启用 Commit 检测</label>
+                      <p class="text-xs mt-1" style="color: var(--text-secondary)">默认开启，关闭后将不检测 Commit 更新</p>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" x-model="gitRepoForm.commitEnabled">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm mb-1 text-slate-500">Commit 检测分支</label>
+                    <input type="text" x-model="gitRepoForm.commitBranch" class="input w-full"
+                      :disabled="!gitRepoForm.commitEnabled"
+                      :placeholder="gitRepoForm.commitEnabled ? (gitAutoFetchDefaultBranch ? '留空则自动获取远程默认分支' : '例如：main') : '关闭后无需配置'">
+                  </div>
                 </div>
                 <div class="section-block space-y-3">
                   <div class="flex items-center justify-between gap-3">
@@ -2069,9 +2086,9 @@
                     <label class="block text-sm mb-1 text-slate-500">Release 分支 / 标识</label>
                     <input type="text" x-model="gitRepoForm.releaseBranch" class="input w-full"
                       :disabled="!gitRepoForm.releaseEnabled"
-                      :placeholder="gitRepoForm.releaseEnabled ? '不填则使用提交配置的分支' : '开启后可配置'">
-                    <p class="text-xs mt-1" style="color: var(--text-secondary)">
-                      开启后如果不填写，将自动使用 Commit 检测分支
+                      :placeholder="gitRepoForm.releaseEnabled ? (gitRepoForm.commitEnabled ? '不填则使用提交配置的分支' : '留空自动获取') : '开启后可配置'">
+                    <p class="text-xs mt-1" style="color: var(--text-secondary)"
+                      x-text="gitRepoForm.commitEnabled ? '开启后如果不填写，将自动使用 Commit 检测分支' : 'Commit 检测关闭时，留空将自动获取默认分支'">
                     </p>
                   </div>
                 </div>
@@ -2975,6 +2992,7 @@
           repoUrl: '',
           owner: '',
           repo: '',
+          commitEnabled: true,
           commitBranch: '',
           releaseEnabled: false,
           releaseBranch: ''
@@ -4420,6 +4438,7 @@
             repoUrl: '',
             owner: '',
             repo: '',
+            commitEnabled: true,
             commitBranch: '',
             releaseEnabled: false,
             releaseBranch: ''
@@ -4443,6 +4462,7 @@
               repoUrl: push.repoUrl || '',
               owner: push.owner,
               repo: push.repo,
+              commitEnabled: push.commitEnabled !== false,
               commitBranch: push.commitBranch || '',
               releaseEnabled: false,
               releaseBranch: push.releaseBranch || ''
@@ -4510,6 +4530,7 @@
             repoUrl: this.gitRepoForm.repoUrl || '',
             owner: this.gitRepoForm.owner,
             repo: this.gitRepoForm.repo,
+            commitEnabled: this.gitRepoForm.commitEnabled !== false,
             commitBranch: this.gitRepoForm.commitBranch || '',
             releaseEnabled: this.gitRepoForm.releaseEnabled === true,
             releaseBranch: this.gitRepoForm.releaseBranch || ''
@@ -4573,6 +4594,7 @@
               repoUrl: item.repoUrl || '',
               owner: item.owner,
               repo: item.repo,
+              commitEnabled: item.commitEnabled !== false,
               commitBranch: item.commitBranch || '',
               releaseEnabled: item.releaseEnabled === true,
               releaseBranch: item.releaseBranch || ''
@@ -4969,6 +4991,7 @@
               repoUrl: parsed.repoUrl,
               owner: parsed.owner,
               repo: parsed.repo,
+              commitEnabled: true,
               commitBranch: '',
               releaseEnabled: true,
               releaseBranch: ''

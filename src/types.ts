@@ -109,10 +109,13 @@ export interface GitPushRepoConfig {
     repoUrl: string;
     owner: string;
     repo: string;
+    /** 是否启用 Commit 检测，默认开启 */
+    commitEnabled?: boolean;
+    /** Commit 检测分支；未填写时可按配置自动获取默认分支 */
     commitBranch?: string;
     /** 是否启用 Release 检测，默认关闭 */
     releaseEnabled?: boolean;
-    /** Release 检测分支/标识；未填写时回退到 commitBranch */
+    /** Release 检测分支/标识；Commit 开启时未填写回退到 Commit 分支，Commit 关闭时可自动获取 */
     releaseBranch?: string;
 }
 
@@ -130,6 +133,7 @@ export interface GitPushConfig {
     repoUrl?: string;
     owner?: string;
     repo?: string;
+    commitEnabled?: boolean;
     commitBranch?: string;
     releaseBranch?: string;
 }

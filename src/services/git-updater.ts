@@ -603,6 +603,7 @@ function normalizeGitPushRepos(config: GitPushConfig): GitPushRepoConfig[] {
     if (Array.isArray(config.repos) && config.repos.length > 0) {
         const normalized = config.repos.filter(item => item && item.provider && item.owner && item.repo);
         for (const item of normalized) {
+            item.commitEnabled = item.commitEnabled !== false;
             item.releaseEnabled = item.releaseEnabled === true;
             item.releaseBranch = item.releaseBranch || '';
         }
@@ -616,6 +617,7 @@ function normalizeGitPushRepos(config: GitPushConfig): GitPushRepoConfig[] {
             repoUrl: config.repoUrl || '',
             owner: config.owner,
             repo: config.repo,
+            commitEnabled: config.commitEnabled !== false,
             commitBranch: config.commitBranch,
             releaseEnabled: false,
             releaseBranch: config.releaseBranch || '',
@@ -629,11 +631,12 @@ function buildRepoUniqueKey(repo: GitPushRepoConfig): string {
     const provider = String(repo.provider || '').trim();
     const owner = String(repo.owner || '').trim().toLowerCase();
     const name = String(repo.repo || '').trim().toLowerCase();
+    const commitEnabled = repo.commitEnabled === false ? '0' : '1';
     const commitBranch = String(repo.commitBranch || '').trim();
     const releaseEnabled = repo.releaseEnabled === true ? '1' : '0';
     const releaseBranch = String(repo.releaseBranch || '').trim();
 
-    return [provider, owner, name, commitBranch, releaseEnabled, releaseBranch].join('|');
+    return [provider, owner, name, commitEnabled, commitBranch, releaseEnabled, releaseBranch].join('|');
 }
 
 function buildTextMessage(config: GitPushConfig, updates: GitUpdateItem[]): string {
@@ -845,9 +848,10 @@ async function collectRepoUpdates(
     const repoPath = `${repoConfig.owner}/${repoConfig.repo}`;
     const token = getProviderToken(repoConfig.provider);
     let effectiveCommitBranch = repoConfig.commitBranch || '';
+    const commitEnabled = repoConfig.commitEnabled !== false;
 
     // Commit 更新
-    if (repoConfig.commitBranch || pluginState.config.gitAutoFetchDefaultBranch) {
+    if (commitEnabled && (repoConfig.commitBranch || pluginState.config.gitAutoFetchDefaultBranch)) {
         let branch = repoConfig.commitBranch;
         if (!branch && pluginState.config.gitAutoFetchDefaultBranch) {
             const defaultBranch = await getDefaultBranch(repoPath, repoConfig.provider, token);
@@ -879,7 +883,18 @@ async function collectRepoUpdates(
 
     // Release 更新
     if (repoConfig.releaseEnabled) {
-        const releaseBranch = repoConfig.releaseBranch || effectiveCommitBranch || repoConfig.commitBranch || '';
+        let releaseBranch = String(repoConfig.releaseBranch || '').trim();
+        if (!releaseBranch) {
+            if (commitEnabled) {
+                releaseBranch = effectiveCommitBranch || repoConfig.commitBranch || '';
+            } else {
+                const defaultBranch = await getDefaultBranch(repoPath, repoConfig.provider, token);
+                if (defaultBranch) {
+                    releaseBranch = defaultBranch;
+                }
+            }
+        }
+
         const releaseData = await getRepositoryData(repoPath, repoConfig.provider, 'releases', token);
         const releaseItem = buildReleaseItem(repoConfig.provider, repoPath, releaseData);
         if (releaseItem) {
