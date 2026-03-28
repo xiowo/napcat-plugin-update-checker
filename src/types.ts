@@ -21,6 +21,8 @@ export interface PluginConfig {
     cooldownSeconds: number;
     /** 主人 QQ（多个使用英文逗号分隔），设置后仅主人可执行管理命令 */
     masterQQ: string;
+    /** 无权限时静默（不回复权限提示） */
+    silentNoPermission?: boolean;
     /** 黑名单用户列表（QQ 号字符串） */
     blacklist: string[];
     /** 按群的单独配置 */

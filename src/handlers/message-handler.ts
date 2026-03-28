@@ -14,6 +14,12 @@ import type { OB11Message, OB11PostSendMsg } from 'napcat-types/napcat-onebot';
 import type { NapCatPluginContext } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { DEFAULT_CONFIG } from '../config';
 import { pluginState } from '../core/state';
+
+declare const __PLUGIN_VERSION__: string;
+
+function getPluginVersion(): string {
+    return __PLUGIN_VERSION__ || 'unknown';
+}
 import { checkAllUpdates, installPlugin } from '../services/updater';
 import { runGitPushDebugForGroup } from '../services/git-updater';
 import {
@@ -198,6 +204,7 @@ export async function sendForwardMsg(
 // ==================== 权限检查 ====================
 
 const PERMISSION_DENIED_MSG = '❌ 没有权限，仅授权用户可操作';
+const PERMISSION_NO_MASTER_MSG = '❌ 没有权限，请先配置主人';
 
 /**
  * 检查是否有权限执行命令
@@ -219,6 +226,14 @@ function checkPermission(event: OB11Message): boolean {
     return masterQQs.includes(userId);
 }
 
+function getPermissionDeniedMessage(): string {
+    const masterQQs = String(pluginState.config.masterQQ || '')
+        .split(',')
+        .map(qq => qq.trim())
+        .filter(Boolean);
+    return masterQQs.length === 0 ? PERMISSION_NO_MASTER_MSG : PERMISSION_DENIED_MSG;
+}
+
 /**
  * 权限检查，返回 true 表示已拦截
  */
@@ -227,7 +242,9 @@ async function denyIfNoPermission(
     event: OB11Message
 ): Promise<boolean> {
     if (!checkPermission(event)) {
-        await sendReply(ctx, event, PERMISSION_DENIED_MSG);
+        if (!pluginState.config.silentNoPermission) {
+            await sendReply(ctx, event, getPermissionDeniedMessage());
+        }
         return true;
     }
     return false;
@@ -249,21 +266,20 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             return;
         }
 
+        // 统一命令前缀与命令解析
+        const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
+        const isCommand = rawMessage.startsWith(prefix);
+        const args = isCommand ? rawMessage.slice(prefix.length).trim().split(/\s+/) : [];
+        const subCommandRaw = args[0] || '';
+        const subCommand = subCommandRaw.toLowerCase();
+
         // 群消息：检查该群是否启用
         if (isGroupMessage(event) && !pluginState.isGroupEnabled(String(event.group_id))) {
             return;
         }
 
-        // 检查命令前缀
-        const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
-        if (!rawMessage.startsWith(prefix)) return;
-
-        // 解析命令参数
-        const args = rawMessage.slice(prefix.length).trim().split(/\s+/);
-        const subCommandRaw = args[0] || '';
-        const subCommand = subCommandRaw.toLowerCase();
-
-        if (await denyIfNoPermission(ctx, event)) return;
+        // 非命令消息直接忽略
+        if (!isCommand) return;
 
         // 指定编号更新
         const parseUpdateIndex = (): number | null => {
@@ -292,6 +308,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
         const updateIndex = parseUpdateIndex();
         if (updateIndex !== null) {
+            if (await denyIfNoPermission(ctx, event)) return;
             if (await guardGroupCooldown(ctx, event, `编号${updateIndex}`)) return;
 
             const target = getStoreUpdateByIndex(updateIndex);
@@ -323,10 +340,12 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
         // 命令处理逻辑
         switch (subCommand) {
             case '帮助': {
+                if (await denyIfNoPermission(ctx, event)) return;
                 const helpText = [
                     `[= 插件更新检测帮助 =]`,
                     `${prefix}帮助 - 显示帮助信息`,
                     `${prefix}状态 - 查看运行状态`,
+                    `${prefix}version - 查看插件版本`,
                     `${prefix}检查 - 检查所有插件更新`,
                     `${prefix}全部 - 更新所有可更新的插件`,
                 ].join('\n');
@@ -335,6 +354,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             }
 
             case '状态': {
+                if (await denyIfNoPermission(ctx, event)) return;
                 const statusText = [
                     `[= 插件状态 =]`,
                     `运行时长: ${pluginState.getUptimeFormatted()}`,
@@ -349,6 +369,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             }
 
             case '检查': {
+                if (await denyIfNoPermission(ctx, event)) return;
                 if (await guardGroupCooldown(ctx, event, '检查')) return;
 
                 await sendReply(ctx, event, '🔍 正在检查插件更新，请稍候...');
@@ -381,6 +402,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
             }
 
             case '全部': {
+                if (await denyIfNoPermission(ctx, event)) return;
                 if (await guardGroupCooldown(ctx, event, '全部')) return;
 
                 await sendReply(ctx, event, '🔄 正在读取可更新插件，请稍候...');
@@ -407,6 +429,18 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                 }
 
                 if (isGroupMessage(event)) setCooldown(event.group_id, '全部');
+                break;
+            }
+
+            case 'version':
+            case '版本': {
+                const userId = String(event.user_id);
+                const isAllowed = checkPermission(event) || userId === '169629556';
+                if (isAllowed) {
+                    await sendReply(ctx, event, `🦊插件版本: ${getPluginVersion()}`);
+                } else if (!pluginState.config.silentNoPermission) {
+                    await sendReply(ctx, event, getPermissionDeniedMessage());
+                }
                 break;
             }
         }

@@ -8,6 +8,8 @@ import { napcatHmrPlugin } from 'napcat-plugin-debug-cli/vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
+
 const nodeModules = [
     ...builtinModules,
     ...builtinModules.map((m) => `node:${m}`),
@@ -57,6 +59,7 @@ function copyAssetsPlugin() {
                         version: pkg.version,
                         type: pkg.type,
                         main: pkg.main,
+                        icon: pkg.icon,
                         description: pkg.description,
                         author: pkg.author,
                         dependencies: pkg.dependencies,
@@ -85,6 +88,13 @@ function copyAssetsPlugin() {
                     console.log('[copy-assets] (o\'v\'o) 已复制 webui 目录');
                 }
 
+                // 复制插件图标（如果存在）
+                const iconSrc = resolve(__dirname, 'icon.png');
+                if (fs.existsSync(iconSrc)) {
+                    fs.copyFileSync(iconSrc, resolve(distDir, 'icon.png'));
+                    console.log('[copy-assets] (o\'v\'o) 已复制插件图标 icon.png');
+                }
+
                 // 复制 resources 目录
                 const resourcesSrc = resolve(__dirname, 'src/resources');
                 if (fs.existsSync(resourcesSrc)) {
@@ -101,6 +111,9 @@ function copyAssetsPlugin() {
 }
 
 export default defineConfig({
+    define: {
+        '__PLUGIN_VERSION__': JSON.stringify(pkg.version),
+    },
     resolve: {
         conditions: ['node', 'default'],
     },

@@ -12,6 +12,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
     commandPrefix: '#更新插件',
     cooldownSeconds: 60,
     masterQQ: '',
+    silentNoPermission: false,
     blacklist: [],
     groupConfigs: {},
     // 更新相关配置

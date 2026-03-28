@@ -35,6 +35,7 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
     if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
     if (typeof raw.masterQQ === 'string') out.masterQQ = raw.masterQQ.trim();
+    if (typeof raw.silentNoPermission === 'boolean') out.silentNoPermission = raw.silentNoPermission;
     if (typeof raw.blacklist === 'string') out.blacklist = raw.blacklist.split(',').map((s: string) => s.trim()).filter(Boolean);
     else if (Array.isArray(raw.blacklist)) out.blacklist = raw.blacklist.map(String).map((s: string) => s.trim()).filter(Boolean);
 

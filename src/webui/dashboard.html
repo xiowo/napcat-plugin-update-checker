@@ -2147,6 +2147,17 @@
                 @change="markNonSwitchChanged()" placeholder="例如：123456, 123456" class="input flex-1">
             </div>
 
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium" style="color: var(--text)">无权限时静默</div>
+                <div class="text-xs" style="color: var(--text-secondary)">开启后，非主人用户执行管理命令时不回复权限提示</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" x-model="config.silentNoPermission" @change="saveConfig()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
             <div class="flex flex-col gap-2">
               <!-- 黑名单用户输入框 -->
               <label class="text-sm font-medium" style="color: var(--text-secondary)">
@@ -2845,6 +2856,7 @@
         commandPrefix: '#更新插件',
         cooldownSeconds: 60,
         masterQQ: '',
+        silentNoPermission: false,
         blacklist: [],
         blacklistStr: '',
         groupConfigs: {},
@@ -3565,6 +3577,7 @@
               commandPrefix: this.config.commandPrefix,
               cooldownSeconds: this.config.cooldownSeconds,
               masterQQ: this.config.masterQQ,
+              silentNoPermission: this.config.silentNoPermission,
               blacklist: this.config.blacklist,
               updateMode: this.config.updateMode,
               enableSchedule: this.config.enableSchedule,
