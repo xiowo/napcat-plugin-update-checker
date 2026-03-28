@@ -102,6 +102,9 @@ class PluginState {
     /** 机器人自身 QQ 号 */
     selfId: string = '';
 
+    /** 机器人自身昵称 */
+    selfNickname: string = '';
+
     /** 活跃的定时器 Map: jobId -> NodeJS.Timeout */
     timers: Map<string, ReturnType<typeof setInterval>> = new Map();
 
@@ -156,18 +159,23 @@ class PluginState {
     }
 
     /**
-     * 获取机器人自身 QQ 号（异步，init 时自动调用）
+     * 获取机器人自身信息（异步，init 时自动调用）
      */
     private async fetchSelfId(): Promise<void> {
         try {
             const res = await this.ctx.actions.call(
                 'get_login_info', {}, this.ctx.adapterName, this.ctx.pluginManager.config
-            ) as { user_id?: number | string };
+            ) as { user_id?: number | string; nickname?: string };
             if (res?.user_id) {
                 this.selfId = String(res.user_id);
+                this.logger.debug("(｡·ω·｡) 机器人 QQ: " + this.selfId);
+            }
+            if (res?.nickname) {
+                this.selfNickname = String(res.nickname);
+                this.logger.debug("(｡·ω·｡) 机器人昵称: " + this.selfNickname);
             }
         } catch (e) {
-            this.logger.warn("(；′⌒`) 获取机器人 QQ 号失败:", e);
+            this.logger.warn("(；′⌒`) 获取机器人自身信息失败:", e);
         }
     }
 

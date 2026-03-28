@@ -138,10 +138,14 @@ function getForwardIdentity(): { userId: string; nickname: string } {
         if (customQQ && customQQ.trim()) userId = customQQ.trim();
         else if (pluginState.selfId) userId = String(pluginState.selfId);
 
-        if (customName && customName.trim()) nickname = customName.trim();
+        if (customName && customName.trim()) {
+            nickname = customName.trim();
+        } else {
+            nickname = String(pluginState.selfNickname || '🦊小助手');
+        }
     }
 
-    return { userId, nickname };
+return { userId, nickname };
 }
 
 function createForwardNode(userId: string, nickname: string, text: string): unknown {
