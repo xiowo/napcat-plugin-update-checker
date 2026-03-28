@@ -3,58 +3,102 @@
  * 支持 GitHub/Gitee/Gitcode/Gitea/CNB
  */
 
-import type { GitProviderName, GitProviderConfig } from '../types';
+import type { GitProviderName, GitProviderConfig, GitApiFormat } from '../types';
 import { pluginState } from '../core/state';
 
-const DEFAULT_API_BASE: Record<GitProviderName, string> = {
-    GitHub: 'https://api.github.com/repos',
-    Gitee: 'https://gitee.com/api/v5/repos',
-    Gitcode: 'https://api.gitcode.com/api/v5/repos',
-    Gitea: 'https://gitea.com/api/v1/repos',
-    CNB: 'https://api.cnb.cool'
+const DEFAULT_API_BASE: Record<string, string> = {
+    github: 'https://api.github.com/repos',
+    gitee: 'https://gitee.com/api/v5/repos',
+    gitcode: 'https://api.gitcode.com/api/v5/repos',
+    gitea: 'https://gitea.com/api/v1/repos',
+    cnb: 'https://api.cnb.cool'
 };
 
-function normalizeProvider(provider: string): GitProviderName {
-    const mapping: Record<string, GitProviderName> = {
-        github: 'GitHub',
-        gitee: 'Gitee',
-        gitcode: 'Gitcode',
-        gitea: 'Gitea',
-        cnb: 'CNB'
+type ProviderKind = 'github' | 'gitee' | 'gitcode' | 'gitea' | 'cnb' | 'custom';
+
+interface ProviderRuntime {
+    kind: ProviderKind;
+    apiFormat: GitApiFormat;
+    config?: GitProviderConfig;
+}
+
+function normalizeProviderKey(provider: string): ProviderKind {
+    const key = String(provider || '').trim().toLowerCase();
+    if (key === 'github') return 'github';
+    if (key === 'gitee') return 'gitee';
+    if (key === 'gitcode') return 'gitcode';
+    if (key === 'gitea') return 'gitea';
+    if (key === 'cnb') return 'cnb';
+    return 'custom';
+}
+
+function getProviderConfig(provider: GitProviderName, configs: GitProviderConfig[] = []): GitProviderConfig | undefined {
+    const providerText = String(provider || '').trim();
+    if (!providerText) return undefined;
+
+    const exact = configs.find(item => String(item?.provider || '').trim() === providerText);
+    if (exact) return exact;
+
+    const lower = providerText.toLowerCase();
+    return configs.find(item => String(item?.provider || '').trim().toLowerCase() === lower);
+}
+
+function resolveProviderRuntime(provider: GitProviderName, configs: GitProviderConfig[] = []): ProviderRuntime {
+    const providerKey = normalizeProviderKey(provider);
+    const cfg = getProviderConfig(provider, configs);
+
+    if (providerKey === 'gitea') {
+        return { kind: 'gitea', apiFormat: 'gitea', config: cfg };
+    }
+
+    if (providerKey === 'github' || providerKey === 'gitee' || providerKey === 'gitcode' || providerKey === 'cnb') {
+        return { kind: providerKey, apiFormat: 'github', config: cfg };
+    }
+
+    return {
+        kind: 'custom',
+        apiFormat: cfg?.apiFormat === 'gitea' ? 'gitea' : 'github',
+        config: cfg
     };
-    return mapping[String(provider || '').toLowerCase()] || 'GitHub';
 }
 
-function getApiBase(provider: GitProviderName, configs: GitProviderConfig[] = []): string {
-    const cfg = configs.find(item => normalizeProvider(item.provider) === provider);
-    return cfg?.apiBase || DEFAULT_API_BASE[provider];
+function getApiBase(provider: GitProviderName, runtime: ProviderRuntime): string {
+    const customBase = String(runtime?.config?.apiBase || '').trim();
+    if (customBase) return customBase;
+
+    if (runtime.kind === 'custom') {
+        return runtime.apiFormat === 'gitea'
+            ? DEFAULT_API_BASE.gitea
+            : DEFAULT_API_BASE.github;
+    }
+
+    return DEFAULT_API_BASE[runtime.kind] || DEFAULT_API_BASE.github;
 }
 
-
-function isGitea(provider: GitProviderName): boolean {
-    return provider.toLowerCase().includes('gitea');
+function isGitea(runtime: ProviderRuntime): boolean {
+    return runtime.kind === 'gitea' || (runtime.kind === 'custom' && runtime.apiFormat === 'gitea');
 }
 
-function isGitee(provider: GitProviderName): boolean {
-    return provider.toLowerCase().includes('gitee');
+function isGitee(runtime: ProviderRuntime): boolean {
+    return runtime.kind === 'gitee';
 }
 
-function isGitcode(provider: GitProviderName): boolean {
-    return provider.toLowerCase().includes('gitcode');
+function isGitcode(runtime: ProviderRuntime): boolean {
+    return runtime.kind === 'gitcode';
 }
 
-function isCNB(provider: GitProviderName): boolean {
-    return provider.toLowerCase().includes('cnb');
+function isCNB(runtime: ProviderRuntime): boolean {
+    return runtime.kind === 'cnb';
 }
 
-function buildHeaders(provider: GitProviderName, token?: string): Record<string, string> {
+function buildHeaders(runtime: ProviderRuntime, token?: string): Record<string, string> {
     const headers: Record<string, string> = {
         'User-Agent': 'napcat-plugin-update-checker',
         Accept: (() => {
-            switch (provider) {
-                case 'GitHub':
+            switch (runtime.kind) {
+                case 'github':
                     return 'application/vnd.github+json';
-                case 'Gitee':
+                case 'gitee':
                     return 'application/vnd.gitee+json';
                 default:
                     return 'application/json';
@@ -64,17 +108,22 @@ function buildHeaders(provider: GitProviderName, token?: string): Record<string,
 
     if (!token) return headers;
 
-    switch (provider) {
-        case 'GitHub':
-        case 'CNB':
+    switch (runtime.kind) {
+        case 'github':
+        case 'cnb':
             headers.Authorization = `Bearer ${token}`;
             break;
-        case 'Gitcode':
+        case 'gitcode':
             headers['PRIVATE-TOKEN'] = token;
             break;
-        case 'Gitee':
-        case 'Gitea':
+        case 'gitee':
+        case 'gitea':
             headers.Authorization = `token ${token}`;
+            break;
+        case 'custom':
+            headers.Authorization = runtime.apiFormat === 'gitea'
+                ? `token ${token}`
+                : `Bearer ${token}`;
             break;
         default:
             headers.Authorization = `Bearer ${token}`;
@@ -144,29 +193,30 @@ export async function getRepositoryData(
     token?: string,
     branchOrSha?: string
 ): Promise<any> {
-    const apiBase = getApiBase(provider, pluginState.config.gitProviders || []);
-    const headers = buildHeaders(provider, token);
+    const providerRuntime = resolveProviderRuntime(provider, pluginState.config.gitProviders || []);
+    const apiBase = getApiBase(provider, providerRuntime);
+    const headers = buildHeaders(providerRuntime, token);
     const params = new URLSearchParams();
 
     let pathname = '';
     if (type === 'commits' && branchOrSha) {
-        if (isGitea(provider)) {
+        if (isGitea(providerRuntime)) {
             pathname = `${repo}/commits`;
             params.set('page', '1');
             params.set('sha', branchOrSha);
-        } else if (isCNB(provider)) {
+        } else if (isCNB(providerRuntime)) {
             pathname = `${repo}/-/git/commits/${branchOrSha}`;
         } else {
             pathname = `${repo}/commits/${branchOrSha}`;
-            if (isGitcode(provider)) params.set('show_diff', 'true');
+            if (isGitcode(providerRuntime)) params.set('show_diff', 'true');
         }
     } else {
-        if (isCNB(provider)) {
+        if (isCNB(providerRuntime)) {
             pathname = `${repo}/-/git/${type}`;
             params.set('page', '1');
         } else {
             pathname = `${repo}/${type}`;
-            if (isGitea(provider)) {
+            if (isGitea(providerRuntime)) {
                 params.set('page', '1');
             } else if (type === 'commits') {
                 params.set('per_page', '1');
@@ -190,10 +240,11 @@ export async function getDefaultBranch(
     provider: GitProviderName,
     token?: string
 ): Promise<string | null> {
-    const apiBase = getApiBase(provider, pluginState.config.gitProviders || []);
-    const headers = buildHeaders(provider, token);
+    const providerRuntime = resolveProviderRuntime(provider, pluginState.config.gitProviders || []);
+    const apiBase = getApiBase(provider, providerRuntime);
+    const headers = buildHeaders(providerRuntime, token);
 
-    const url = isCNB(provider)
+    const url = isCNB(providerRuntime)
         ? joinUrl(apiBase, `${repo}/-/git/head`)
         : joinUrl(apiBase, `${repo}`);
 
@@ -203,7 +254,7 @@ export async function getDefaultBranch(
     });
     if (!data) return null;
 
-    if (isCNB(provider)) {
+    if (isCNB(providerRuntime)) {
         return data?.name || null;
     }
 

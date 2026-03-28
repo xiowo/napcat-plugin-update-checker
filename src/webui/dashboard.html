@@ -1842,7 +1842,7 @@
               <button @click="showGitApiConfigModal = true" class="settings-list-item w-full text-left">
                 <div class="settings-list-item__meta">
                   <div class="settings-list-item__title">API 配置</div>
-                  <div class="settings-list-item__desc">统一配置 GitHub / Gitee / Gitcode / Gitea / CNB 的 Token 与 API 地址</div>
+                  <div class="settings-list-item__desc">统一配置内置提供商，并支持添加自定义 API 提供商（可选 github/gitea 接口格式）</div>
                 </div>
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -1894,26 +1894,53 @@
             <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
               <div>
                 <h3 class="font-bold text-lg" style="color: var(--text)">API 配置</h3>
-                <p class="text-xs mt-1" style="color: var(--text-secondary)">输入框会显示当前提供商的默认 API 地址</p>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">配置/添加提供商 API 地址</p>
               </div>
-              <button @click="showGitApiConfigModal = false" class="btn btn-secondary text-sm shrink-0">返回</button>
+              <div class="flex items-center gap-2">
+                <button @click="openCustomProviderCreateModal()" class="btn btn-secondary text-sm shrink-0">添加自定义源</button>
+                <button @click="showGitApiConfigModal = false" class="btn btn-secondary text-sm shrink-0">返回</button>
+              </div>
             </div>
 
             <div class="space-y-4">
               <template x-for="provider in gitProviders" :key="provider.provider">
                 <div class="border border-[var(--border)] rounded-xl p-4 space-y-3">
-                  <div class="flex items-center gap-2 font-medium">
-                    <span x-text="getProviderIcon(provider.provider)"></span>
-                    <span x-text="provider.provider"></span>
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 font-medium min-w-0">
+                      <span x-text="getProviderIcon(provider.provider)"></span>
+                      <span class="truncate" x-text="provider.provider"></span>
+                      <span x-show="provider.isCustom" class="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-light)]"
+                        style="color: var(--primary)">自定义</span>
+                    </div>
+                    <button x-show="provider.isCustom" @click="removeCustomGitProvider(provider.provider)"
+                      class="btn text-xs px-2 py-1" style="background:#fee2e2;color:#991b1b;">删除</button>
                   </div>
+
                   <div>
                     <label class="block text-xs mb-1 text-slate-500">访问令牌</label>
-                    <input type="password" x-model="provider.token" class="input w-full" placeholder="可选，不填则匿名访问">
+                    <input type="password" x-model="provider.token" class="input w-full" placeholder="填写你的访问令牌">
                   </div>
+
+                  <div x-show="provider.isCustom">
+                    <label class="block text-xs mb-1 text-slate-500">提供商图标 URL</label>
+                    <input type="text" x-model="provider.iconUrl" class="input w-full"
+                      placeholder="https://example.com/icon.png">
+                    <p class="text-xs mt-1" style="color: var(--text-secondary)">用于渲染推送中的提供商图标展示</p>
+                  </div>
+
+                  <div x-show="provider.isCustom">
+                    <label class="block text-xs mb-1 text-slate-500">API 格式</label>
+                    <select x-model="provider.apiFormat" class="input w-full">
+                      <option value="github">GitHub 风格</option>
+                      <option value="gitea">Gitea 风格</option>
+                    </select>
+                    <p class="text-xs mt-1" style="color: var(--text-secondary)">仅自定义提供商可配置接口格式</p>
+                  </div>
+
                   <div>
                     <label class="block text-xs mb-1 text-slate-500">API Base</label>
                     <input type="text" x-model="provider.apiBase" class="input w-full"
-                      :placeholder="getProviderDefaultApiBase(provider.provider)">
+                      :placeholder="getProviderDefaultApiBase(provider.provider, provider)">
                   </div>
                 </div>
               </template>
@@ -1921,6 +1948,57 @@
 
             <div class="flex justify-end gap-3 mt-6">
               <button @click="showGitApiConfigModal = false" class="btn btn-secondary text-sm">完成</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加自定义 API 源（二级页） -->
+        <div x-show="showGitCustomProviderModal" x-cloak
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+          <div class="modal-panel max-w-2xl p-4 sm:p-6 animate-fade-in">
+            <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 class="font-bold text-lg" style="color: var(--text)">添加自定义源</h3>
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">可自定义源名称，并手动配置 API 格式与 API Base</p>
+              </div>
+              <button @click="closeCustomProviderCreateModal()" class="btn btn-secondary text-sm shrink-0">返回</button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">源名称（自定义）</label>
+                <input type="text" x-model="customProviderForm.name" class="input w-full" placeholder="例如：我的私有仓库源">
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">提供商图标 URL</label>
+                <input type="text" x-model="customProviderForm.iconUrl" class="input w-full"
+                  placeholder="https://example.com/icon.png">
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">API 格式</label>
+                <select x-model="customProviderForm.apiFormat" class="input w-full">
+                  <option value="github">GitHub 风格</option>
+                  <option value="gitea">Gitea 风格</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">API Base</label>
+                <input type="text" x-model="customProviderForm.apiBase" class="input w-full"
+                  :placeholder="getProviderDefaultApiBase('Custom', customProviderForm)">
+              </div>
+
+              <div>
+                <label class="block text-sm mb-1 text-slate-500">访问令牌</label>
+                <input type="password" x-model="customProviderForm.token" class="input w-full" placeholder="填写你的访问令牌">
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+              <button @click="closeCustomProviderCreateModal()" class="btn btn-secondary text-sm">取消</button>
+              <button @click="confirmCreateCustomProvider()" class="btn btn-primary text-sm">添加</button>
             </div>
           </div>
         </div>
@@ -2043,19 +2121,17 @@
             <div class="space-y-4">
               <div>
                 <label class="block text-sm mb-1 text-slate-500">Git 仓库链接</label>
-                <input type="text" x-model="gitRepoForm.repoUrl" @input="handleRepoUrlInput(gitRepoForm)" class="input w-full"
-                  placeholder="https://github.com/owner/repo">
+                  <input type="text" x-model="gitRepoForm.repoUrl" @input="handleRepoUrlInput(gitRepoForm)" class="input w-full"
+                    placeholder="https://github.com/owner/repo">
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm mb-1 text-slate-500">仓库提供商</label>
                   <select x-model="gitRepoForm.provider" class="input w-full">
-                    <option value="GitHub">GitHub</option>
-                    <option value="Gitee">Gitee</option>
-                    <option value="Gitcode">Gitcode</option>
-                    <option value="Gitea">Gitea</option>
-                    <option value="CNB">CNB</option>
+                    <template x-for="provider in gitProviders" :key="'repo-provider-' + provider.provider">
+                      <option :value="provider.provider" x-text="provider.provider"></option>
+                    </template>
                   </select>
                 </div>
                 <div>
@@ -3001,6 +3077,14 @@
         pluginSourceEditDisableStoreCheck: false,
         pluginSourceEditRepoUrl: '',
         showGitApiConfigModal: false,
+        showGitCustomProviderModal: false,
+        customProviderForm: {
+          name: '',
+          iconUrl: '',
+          apiFormat: 'github',
+          apiBase: '',
+          token: ''
+        },
         showGitPushModal: false,
         showGitRepoModal: false,
         gitEditingIndex: null,
@@ -4409,7 +4493,37 @@
         async fetchGitConfig() {
           try {
             const data = await this.api('/git-config');
-            this.gitProviders = data.gitProviders || [];
+            const providers = Array.isArray(data.gitProviders) ? data.gitProviders : [];
+            const builtInProviders = Object.keys(this.gitDefaultApiBaseMap);
+
+            const normalized = providers.map(provider => {
+              const name = String(provider?.provider || '').trim();
+              const isBuiltIn = builtInProviders.includes(name);
+              return {
+                ...provider,
+                provider: name,
+                isCustom: provider?.isCustom === true || !isBuiltIn,
+                iconUrl: String(provider?.iconUrl || '').trim(),
+                apiFormat: provider?.apiFormat === 'gitea' ? 'gitea' : 'github',
+                apiBase: String(provider?.apiBase || '').trim() || this.getProviderDefaultApiBase(name, provider)
+              };
+            }).filter(item => item.provider);
+
+            // 确保内置源始终可用
+            for (const builtIn of builtInProviders) {
+              if (!normalized.find(item => item.provider === builtIn)) {
+                normalized.push({
+                  provider: builtIn,
+                  token: '',
+                  apiBase: this.getProviderDefaultApiBase(builtIn),
+                  iconUrl: '',
+                  isCustom: false,
+                  apiFormat: builtIn === 'Gitea' ? 'gitea' : 'github'
+                });
+              }
+            }
+
+            this.gitProviders = normalized;
             this.gitPushConfigs = data.gitPushConfigs || [];
             this.gitAutoFetchDefaultBranch = data.gitAutoFetchDefaultBranch !== false;
             this.gitRenderMode = data.gitRenderMode || 'text';
@@ -4471,8 +4585,120 @@
           };
         },
 
-        getProviderDefaultApiBase(provider) {
-          return this.gitDefaultApiBaseMap[provider] || '';
+        getProviderDefaultApiBase(provider, providerItem = null) {
+          if (this.gitDefaultApiBaseMap[provider]) {
+            return this.gitDefaultApiBaseMap[provider];
+          }
+
+          const format = (providerItem?.apiFormat === 'gitea') ? 'gitea' : 'github';
+          return format === 'gitea'
+            ? this.gitDefaultApiBaseMap.Gitea
+            : this.gitDefaultApiBaseMap.GitHub;
+        },
+
+        buildCustomApiBaseByHost(host, apiFormat = 'github') {
+          const safeHost = String(host || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (!safeHost) {
+            return this.getProviderDefaultApiBase('Custom', { apiFormat });
+          }
+
+          const origin = `https://${safeHost}`;
+          return apiFormat === 'gitea'
+            ? `${origin}/api/v1/repos`
+            : `${origin}/api/v3/repos`;
+        },
+
+        initCustomProviderForm() {
+          return {
+            name: '',
+            iconUrl: '',
+            apiFormat: 'github',
+            apiBase: '',
+            token: ''
+          };
+        },
+
+        openCustomProviderCreateModal() {
+          this.customProviderForm = this.initCustomProviderForm();
+          this.showGitCustomProviderModal = true;
+        },
+
+        closeCustomProviderCreateModal() {
+          this.showGitCustomProviderModal = false;
+          this.customProviderForm = this.initCustomProviderForm();
+        },
+
+        confirmCreateCustomProvider() {
+          const name = String(this.customProviderForm.name || '').trim();
+          if (!name) {
+            showToast('请填写自定义源名称', 'error');
+            return;
+          }
+
+          if (this.isBuiltInProvider(name)) {
+            showToast('该名称与内置提供商冲突，请更换名称', 'error');
+            return;
+          }
+
+          if (this.gitProviders.some(item => String(item.provider || '').trim() === name)) {
+            showToast('提供商名称已存在，请更换名称', 'error');
+            return;
+          }
+
+          let apiBase = String(this.customProviderForm.apiBase || '').trim();
+          const apiFormat = this.customProviderForm.apiFormat === 'gitea' ? 'gitea' : 'github';
+          if (!apiBase) {
+            apiBase = this.getProviderDefaultApiBase('Custom', { apiFormat });
+          }
+
+          this.gitProviders.push({
+            provider: name,
+            token: String(this.customProviderForm.token || '').trim(),
+            apiBase,
+            iconUrl: String(this.customProviderForm.iconUrl || '').trim(),
+            isCustom: true,
+            apiFormat
+          });
+
+          this.closeCustomProviderCreateModal();
+          showToast('自定义源已添加', 'success');
+        },
+
+        isBuiltInProvider(providerName) {
+          return Object.prototype.hasOwnProperty.call(this.gitDefaultApiBaseMap, String(providerName || '').trim());
+        },
+
+        addCustomGitProvider() {
+          this.openCustomProviderCreateModal();
+        },
+
+        removeCustomGitProvider(providerName) {
+          this.gitProviders = this.gitProviders.filter(item => {
+            if (!item.isCustom) return true;
+            return item.provider !== providerName;
+          });
+
+          // 同步修正仓库表单 provider
+          if (!this.gitProviders.find(item => item.provider === this.gitRepoForm.provider)) {
+            this.gitRepoForm.provider = this.gitProviders[0]?.provider || 'GitHub';
+          }
+        },
+
+        ensureCustomProviderByHost(host, preferredFormat = 'github') {
+          const providerName = `Custom-${host}`;
+          const existing = this.gitProviders.find(item => item.provider === providerName);
+          if (existing) return existing.provider;
+
+          const format = preferredFormat === 'gitea' ? 'gitea' : 'github';
+          this.gitProviders.push({
+            provider: providerName,
+            token: '',
+            apiBase: this.buildCustomApiBaseByHost(host, format),
+            iconUrl: '',
+            isCustom: true,
+            apiFormat: format
+          });
+          return providerName;
         },
 
         formatTargetList(list, fallback = '-') {
@@ -4521,6 +4747,22 @@
           } else {
             this.gitRepoForm = this.initGitRepoForm();
           }
+
+          if (!Array.isArray(this.gitProviders) || this.gitProviders.length === 0) {
+            this.gitProviders = Object.keys(this.gitDefaultApiBaseMap).map(name => ({
+              provider: name,
+              token: '',
+              apiBase: this.getProviderDefaultApiBase(name),
+              iconUrl: '',
+              isCustom: false,
+              apiFormat: name === 'Gitea' ? 'gitea' : 'github'
+            }));
+          }
+
+          if (!this.gitProviders.find(item => item.provider === this.gitRepoForm.provider)) {
+            this.gitRepoForm.provider = this.gitProviders[0]?.provider || 'GitHub';
+          }
+
           this.showGitRepoModal = true;
         },
 
@@ -4538,9 +4780,37 @@
           const parsed = this.parseGitRepoInfoFromUrl(targetForm.repoUrl);
           if (!parsed) return;
 
-          targetForm.provider = parsed.provider;
           targetForm.owner = parsed.owner;
           targetForm.repo = parsed.repo;
+
+          if (this.gitProviders.find(item => item.provider === parsed.provider)) {
+            targetForm.provider = parsed.provider;
+          }
+        },
+
+        quickIdentifyRepoConnection(form = null) {
+          const targetForm = form || this.gitRepoForm;
+          if (!targetForm || !targetForm.repoUrl) {
+            showToast('请先输入仓库链接', 'error');
+            return;
+          }
+
+          const parsed = this.parseGitRepoInfoFromUrl(targetForm.repoUrl);
+          if (!parsed) {
+            showToast('未识别到有效仓库地址', 'error');
+            return;
+          }
+
+          targetForm.owner = parsed.owner;
+          targetForm.repo = parsed.repo;
+
+          let finalProvider = parsed.provider;
+          if (parsed.isCustomProvider) {
+            finalProvider = this.ensureCustomProviderByHost(parsed.host, 'github');
+          }
+          targetForm.provider = finalProvider;
+
+          showToast(`识别成功：${targetForm.provider} / ${targetForm.owner}/${targetForm.repo}`, 'success');
         },
 
         saveGitRepoItem() {
@@ -4580,8 +4850,23 @@
 
         async saveGitProviders() {
           try {
+            const cleanedProviders = (this.gitProviders || [])
+              .filter(item => String(item?.provider || '').trim())
+              .map(item => {
+                const providerName = String(item.provider || '').trim();
+                const isCustom = item.isCustom === true || !this.isBuiltInProvider(providerName);
+                return {
+                  provider: providerName,
+                  token: String(item.token || '').trim(),
+                  apiBase: String(item.apiBase || '').trim(),
+                  iconUrl: String(item.iconUrl || '').trim(),
+                  isCustom,
+                  apiFormat: isCustom ? (item.apiFormat === 'gitea' ? 'gitea' : 'github') : undefined
+                };
+              });
+
             await this.api('/git-config', 'POST', {
-              gitProviders: this.gitProviders,
+              gitProviders: cleanedProviders,
               gitAutoFetchDefaultBranch: this.gitAutoFetchDefaultBranch,
               gitRenderMode: this.gitRenderMode,
               gitEnableSchedule: this.gitScheduleEnabled,
@@ -4907,15 +5192,29 @@
           if (!host || !owner || !repo) return null;
 
           let provider = 'GitHub';
-          if (host.includes('gitee.com')) provider = 'Gitee';
-          else if (host.includes('gitcode.com')) provider = 'Gitcode';
-          else if (host.includes('cnb.cool')) provider = 'CNB';
-          else if (host.includes('gitea')) provider = 'Gitea';
+          let isCustomProvider = false;
+
+          if (host.includes('github.com')) {
+            provider = 'GitHub';
+          } else if (host.includes('gitee.com')) {
+            provider = 'Gitee';
+          } else if (host.includes('gitcode.com')) {
+            provider = 'Gitcode';
+          } else if (host.includes('cnb.cool')) {
+            provider = 'CNB';
+          } else if (host.includes('gitea')) {
+            provider = 'Gitea';
+          } else {
+            isCustomProvider = true;
+            provider = `Custom-${host}`;
+          }
 
           return {
             provider,
             owner,
             repo,
+            host,
+            isCustomProvider,
             repoUrl: `https://${host}/${owner}/${repo}`
           };
         },

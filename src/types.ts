@@ -93,12 +93,30 @@ export interface GroupConfig {
 
 // ==================== Git 更新推送 ====================
 
-export type GitProviderName = 'GitHub' | 'Gitee' | 'Gitcode' | 'Gitea' | 'CNB';
+export type BuiltInGitProviderName = 'GitHub' | 'Gitee' | 'Gitcode' | 'Gitea' | 'CNB';
+
+/**
+ * Git 提供商名称：
+ * - 内置：GitHub/Gitee/Gitcode/Gitea/CNB
+ * - 自定义：任意字符串（用于用户自定义 API 提供商）
+ */
+export type GitProviderName = BuiltInGitProviderName | string;
+
+/**
+ * 自定义 API 格式：
+ * - github：使用 GitHub 风格接口（如 /commits/{branch}）
+ * - gitea：使用 Gitea 风格接口（如 /commits?sha={branch}）
+ */
+export type GitApiFormat = 'github' | 'gitea';
 
 export interface GitProviderConfig {
     provider: GitProviderName;
     token?: string;
     apiBase?: string;
+    /** 提供商图标 URL（用于渲染推送展示） */
+    iconUrl?: string;
+    isCustom?: boolean;
+    apiFormat?: GitApiFormat;
 }
 
 export type GitPushRenderMode = 'text' | 'render';

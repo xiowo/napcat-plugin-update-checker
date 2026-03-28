@@ -187,7 +187,24 @@ function readIconAsDataUri(fileName: string, fallbackSvg: string): string {
     return svgToDataUri(fallbackSvg);
 }
 
+function getConfiguredProviderIconUrl(provider: GitProviderName): string {
+    const list = pluginState.config.gitProviders || [];
+    const providerText = String(provider || '').trim();
+    if (!providerText) return '';
+
+    const exact = list.find(item => String(item?.provider || '').trim() === providerText);
+    const hit = exact || list.find(item => String(item?.provider || '').trim().toLowerCase() === providerText.toLowerCase());
+    const iconUrl = String(hit?.iconUrl || '').trim();
+
+    if (!iconUrl) return '';
+    if (/^https?:\/\//i.test(iconUrl) || /^data:image\//i.test(iconUrl)) return iconUrl;
+    return '';
+}
+
 function getProviderIcon(provider: GitProviderName): string {
+    const configuredIconUrl = getConfiguredProviderIconUrl(provider);
+    if (configuredIconUrl) return configuredIconUrl;
+
     const fileMap: Record<string, string> = {
         GitHub: 'GitHub.svg',
         Gitee: 'Gitee.svg',
@@ -197,7 +214,7 @@ function getProviderIcon(provider: GitProviderName): string {
     };
 
     return readIconAsDataUri(
-        fileMap[provider] || 'GitHub.svg',
+        fileMap[provider] || 'git.svg',
         `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><rect width="18" height="18" rx="4" fill="#222"/><text x="9" y="12" text-anchor="middle" font-size="8" fill="#fff">${providerEmoji(provider)}</text></svg>`
     );
 }
