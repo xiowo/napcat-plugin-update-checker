@@ -409,6 +409,8 @@
       max-width: min(520px, calc(100vw - 40px));
       white-space: normal;
       word-break: break-word;
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
     .toast-success {
@@ -421,6 +423,12 @@
 
     .toast-info {
       background: var(--primary);
+    }
+
+    .toast.hiding {
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
     }
 
     /* 卡片入场动画 */
@@ -480,6 +488,16 @@
       opacity: 0;
       transform: scale(0.95) translateY(-10px);
       transition: all 0.3s var(--ease-smooth);
+    }
+
+    .secret-forward-panel {
+      background: var(--primary-light);
+      border: 1px solid var(--border);
+    }
+
+    [data-theme="dark"] .secret-forward-panel {
+      background: #2a231e;
+      border-color: #3a302a;
     }
 
     /* 星星闪烁动画 */
@@ -581,7 +599,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 16px;
-      background: var(--card-bg);
+      background: var(--bg);
     }
 
     .repo-config-card {
@@ -605,23 +623,32 @@
     }
 
     .modal-panel {
-      background: white;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 16px;
       width: 100%;
       max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
       overflow-y: auto;
       overscroll-behavior: contain;
+      box-shadow: var(--shadow-hover);
+    }
+
+    .mobile-modal-top-gap {
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
 
     .modal-header-sticky {
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      background: var(--card-bg);
-      margin: -16px -16px 16px;
-      padding: 16px;
-      border-top-left-radius: 16px;
-      border-top-right-radius: 16px;
+      position: static;
+      top: auto;
+      z-index: auto;
+      background: transparent;
+      margin: 0 0 16px;
+      padding: 0;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      border-bottom: 0;
     }
 
     @media (max-width: 640px) {
@@ -630,24 +657,30 @@
         right: 12px;
         left: 12px;
         max-width: none;
-        align-items: stretch;
+        align-items: flex-end;
       }
 
       .toast {
-        max-width: none;
-        width: 100%;
+        width: fit-content;
+        max-width: calc(100vw - 24px);
       }
 
       .modal-panel {
         max-height: calc(100vh - 8px);
+        max-height: calc(100dvh - 8px);
         border-radius: 12px;
       }
 
+      .mobile-modal-top-gap {
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+      }
+
       .modal-header-sticky {
-        margin: -12px -12px 12px;
-        padding: 12px;
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
+        margin: 0 0 12px;
+        padding: 0;
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
       }
 
       .fab-btn {
@@ -846,8 +879,8 @@
                 </label>
               </div>
 
-              <div x-show="secretConfig.customForwardInfo" x-transition.opacity class="space-y-3 p-4 rounded-lg"
-                style="background: var(--primary-light);">
+              <div x-show="secretConfig.customForwardInfo" x-transition.opacity
+                class="space-y-3 p-4 rounded-lg secret-forward-panel">
                 <div>
                   <label class="block text-sm mb-1" style="color: var(--text)">自定义 QQ 号</label>
                   <input type="text" x-model="secretConfig.customForwardQQ" placeholder="留空则使用机器人自身 QQ 号"
@@ -1889,7 +1922,7 @@
 
         <!-- API 配置二级页 -->
         <div x-show="showGitApiConfigModal" x-cloak
-          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-[60] p-4 mobile-modal-top-gap">
           <div class="modal-panel max-w-3xl p-4 sm:p-6 animate-fade-in">
             <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
               <div>
@@ -1916,31 +1949,33 @@
                       class="btn text-xs px-2 py-1" style="background:#fee2e2;color:#991b1b;">删除</button>
                   </div>
 
-                  <div>
-                    <label class="block text-xs mb-1 text-slate-500">访问令牌</label>
-                    <input type="password" x-model="provider.token" class="input w-full" placeholder="填写你的访问令牌">
-                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs mb-1 text-slate-500">访问令牌</label>
+                      <input type="password" x-model="provider.token" class="input w-full" placeholder="填写你的访问令牌">
+                    </div>
 
-                  <div x-show="provider.isCustom">
-                    <label class="block text-xs mb-1 text-slate-500">提供商图标 URL</label>
-                    <input type="text" x-model="provider.iconUrl" class="input w-full"
-                      placeholder="https://example.com/icon.png">
-                    <p class="text-xs mt-1" style="color: var(--text-secondary)">用于渲染推送中的提供商图标展示</p>
-                  </div>
+                    <div>
+                      <label class="block text-xs mb-1 text-slate-500">API Base</label>
+                      <input type="text" x-model="provider.apiBase" class="input w-full"
+                        :placeholder="getProviderDefaultApiBase(provider.provider, provider)">
+                    </div>
 
-                  <div x-show="provider.isCustom">
-                    <label class="block text-xs mb-1 text-slate-500">API 格式</label>
-                    <select x-model="provider.apiFormat" class="input w-full">
-                      <option value="github">GitHub 风格</option>
-                      <option value="gitea">Gitea 风格</option>
-                    </select>
-                    <p class="text-xs mt-1" style="color: var(--text-secondary)">仅自定义提供商可配置接口格式</p>
-                  </div>
+                    <div x-show="provider.isCustom" class="md:col-span-2">
+                      <label class="block text-xs mb-1 text-slate-500">提供商图标 URL</label>
+                      <input type="text" x-model="provider.iconUrl" class="input w-full"
+                        placeholder="https://example.com/icon.png">
+                      <p class="text-xs mt-1" style="color: var(--text-secondary)">用于渲染推送中的提供商图标展示</p>
+                    </div>
 
-                  <div>
-                    <label class="block text-xs mb-1 text-slate-500">API Base</label>
-                    <input type="text" x-model="provider.apiBase" class="input w-full"
-                      :placeholder="getProviderDefaultApiBase(provider.provider, provider)">
+                    <div x-show="provider.isCustom" class="md:col-span-2">
+                      <label class="block text-xs mb-1 text-slate-500">API 格式</label>
+                      <select x-model="provider.apiFormat" class="input w-full">
+                        <option value="github">GitHub 风格</option>
+                        <option value="gitea">Gitea 风格</option>
+                      </select>
+                      <p class="text-xs mt-1" style="color: var(--text-secondary)">仅自定义提供商可配置接口格式</p>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -2871,12 +2906,12 @@
               <div class="font-medium mb-2" style="color: var(--text)">通知设置</div>
               <div class="space-y-3">
                 <div class="flex flex-col gap-2">
-                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，逗号分隔)</label>
+                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，多个用英文逗号分隔)</label>
                   <input type="text" x-model="config.notifyGroupsStr" @input="markNonSwitchChanged()"
                     placeholder="例如：12345678, 12345678" class="input flex-1">
                 </div>
                 <div class="flex flex-col gap-2">
-                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知用户 (填QQ号，逗号分隔)</label>
+                  <label class="text-sm font-medium" style="color: var(--text-secondary)">通知用户 (填QQ号，多个用英文逗号分隔)</label>
                   <input type="text" x-model="config.notifyUsersStr" @input="markNonSwitchChanged()"
                     placeholder="例如：123456, 123456" class="input flex-1">
                 </div>
@@ -2909,11 +2944,21 @@
       const toast = document.createElement('div');
       toast.className = `toast toast-${type}`;
       toast.textContent = msg;
+      toast.title = '点击可关闭通知';
       container.appendChild(toast);
-      setTimeout(() => {
+
+      let removed = false;
+      let removeTimer = null;
+      const dismiss = () => {
+        if (removed) return;
+        removed = true;
+        if (removeTimer) clearTimeout(removeTimer);
         toast.classList.add('hiding');
         setTimeout(() => toast.remove(), 400);
-      }, 3000);
+      };
+
+      toast.addEventListener('click', dismiss);
+      removeTimer = setTimeout(dismiss, 3000);
     }
 
     function resolvePluginName() {
