@@ -224,6 +224,16 @@ function buildPluginIconUrl(pluginId: string): string {
     return `/api/Plugin/Icon/${encodeURIComponent(pluginId)}`;
 }
 
+function getRepoSubscriptionCount(config: PluginConfig): number {
+    const gitPushConfigs = Array.isArray(config.gitPushConfigs) ? config.gitPushConfigs : [];
+    return gitPushConfigs.reduce((count, pushConfig: any) => {
+        const repos = Array.isArray(pushConfig?.repos) && pushConfig.repos.length > 0
+            ? pushConfig.repos
+            : (pushConfig?.provider && pushConfig?.owner && pushConfig?.repo ? [pushConfig] : []);
+        return count + repos.length;
+    }, 0);
+}
+
 function extractRepositoryUrl(plugin: any): string {
     try {
         const repo = plugin?.packageJson?.repository;
@@ -306,6 +316,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 code: 0,
                 data: {
                     uptimeFormatted: pluginState.getUptimeFormatted(),
+                    repoSubscriptionCount: getRepoSubscriptionCount(pluginState.config),
                     config: pluginState.config
                 }
             });
