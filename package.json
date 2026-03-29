@@ -1,11 +1,11 @@
 {
   "name": "napcat-plugin-update-checker",
   "plugin": "插件更新检测",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "type": "module",
   "main": "index.mjs",
   "icon": "icon.png",
-  "description": "一个支持添加第三方插件源的插件更新检测工具，定时检查已安装插件更新，可设置提醒或自动更新。",
+  "description": "一个支持添加第三方插件源，多种功能的超级更新检测工具，支持nc插件以及多Git提供商仓库更新检查定与推送。",
   "author": "MortalCat",
   "license": "MIT",
   "keywords": [
