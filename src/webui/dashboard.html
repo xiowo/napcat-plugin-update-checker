@@ -1894,12 +1894,29 @@
                   </label>
                 </div>
 
-                <div>
+                <div class="relative" :class="gitRenderModeDropdownOpen ? 'z-20' : 'z-10'"
+                  @click.outside="gitRenderModeDropdownOpen = false">
                   <label class="block text-sm mb-1" style="color: var(--text-secondary)">默认推送类型</label>
-                  <select x-model="gitRenderMode" class="input w-full">
-                    <option value="text">文本推送</option>
-                    <option value="render">渲染推送</option>
-                  </select>
+                  <div class="input flex items-center justify-between cursor-pointer select-none"
+                    @click="gitRenderModeDropdownOpen = !gitRenderModeDropdownOpen">
+                    <span style="color: var(--text)" x-text="gitRenderMode === 'render' ? '渲染推送' : '文本推送'"></span>
+                    <svg class="w-4 h-4 transition-transform text-slate-400"
+                      :class="gitRenderModeDropdownOpen ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div x-show="gitRenderModeDropdownOpen" x-transition x-cloak
+                    class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+                    <button @click="gitRenderMode = 'text'; gitRenderModeDropdownOpen = false"
+                      :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', gitRenderMode === 'text' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                      文本推送
+                    </button>
+                    <button @click="gitRenderMode = 'render'; gitRenderModeDropdownOpen = false"
+                      :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', gitRenderMode === 'render' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                      渲染推送
+                    </button>
+                  </div>
                   <p class="text-xs mt-1" style="color: var(--text-secondary)">新增推送列表时将默认选中此类型</p>
                 </div>
 
@@ -2068,12 +2085,30 @@
                     <label class="block text-sm mb-1 text-slate-500">列表名称</label>
                     <input type="text" x-model="gitForm.name" class="input w-full" placeholder="例如：主仓库更新推送">
                   </div>
-                  <div>
+                  <div class="relative" :class="gitFormRenderModeDropdownOpen ? 'z-20' : 'z-10'"
+                    @click.outside="gitFormRenderModeDropdownOpen = false">
                     <label class="block text-sm mb-1 text-slate-500">推送类型</label>
-                    <select x-model="gitForm.renderMode" class="input w-full">
-                      <option value="text">文本推送</option>
-                      <option value="render">渲染推送</option>
-                    </select>
+                    <div class="input flex items-center justify-between cursor-pointer select-none"
+                      @click="gitFormRenderModeDropdownOpen = !gitFormRenderModeDropdownOpen">
+                      <span style="color: var(--text)"
+                        x-text="gitForm.renderMode === 'render' ? '渲染推送' : '文本推送'"></span>
+                      <svg class="w-4 h-4 transition-transform text-slate-400"
+                        :class="gitFormRenderModeDropdownOpen ? 'transform rotate-180' : ''" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    <div x-show="gitFormRenderModeDropdownOpen" x-transition x-cloak
+                      class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1">
+                      <button @click="gitForm.renderMode = 'text'; gitFormRenderModeDropdownOpen = false"
+                        :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', gitForm.renderMode === 'text' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                        文本推送
+                      </button>
+                      <button @click="gitForm.renderMode = 'render'; gitFormRenderModeDropdownOpen = false"
+                        :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm', gitForm.renderMode === 'render' ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                        渲染推送
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2170,13 +2205,31 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+                <div class="relative" :class="gitRepoProviderDropdownOpen ? 'z-20' : 'z-10'"
+                  @click.outside="gitRepoProviderDropdownOpen = false">
                   <label class="block text-sm mb-1 text-slate-500">仓库提供商</label>
-                  <select x-model="gitRepoForm.provider" class="input w-full">
+                  <div class="input flex items-center justify-between cursor-pointer select-none"
+                    @click="gitRepoProviderDropdownOpen = !gitRepoProviderDropdownOpen">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span x-text="getProviderIcon(gitRepoForm.provider)"></span>
+                      <span class="truncate" style="color: var(--text)" x-text="gitRepoForm.provider"></span>
+                    </div>
+                    <svg class="w-4 h-4 transition-transform text-slate-400"
+                      :class="gitRepoProviderDropdownOpen ? 'transform rotate-180' : ''" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div x-show="gitRepoProviderDropdownOpen" x-transition x-cloak
+                    class="absolute left-0 right-0 top-full mt-2 p-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-50 space-y-1 max-h-56 overflow-y-auto">
                     <template x-for="provider in gitProviders" :key="'repo-provider-' + provider.provider">
-                      <option :value="provider.provider" x-text="provider.provider"></option>
+                      <button @click="gitRepoForm.provider = provider.provider; gitRepoProviderDropdownOpen = false"
+                        :class="['w-full text-left px-3 py-1.5 rounded-lg text-sm flex items-center gap-2', gitRepoForm.provider === provider.provider ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'hover:bg-[var(--border-light)]']">
+                        <span x-text="getProviderIcon(provider.provider)"></span>
+                        <span class="truncate" x-text="provider.provider"></span>
+                      </button>
                     </template>
-                  </select>
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm mb-1 text-slate-500">仓库路径</label>
@@ -3067,6 +3120,9 @@
         confirmCallback: null,
         // 更新模式下拉菜单状态
         updateModeDropdownOpen: false,
+        gitRenderModeDropdownOpen: false,
+        gitFormRenderModeDropdownOpen: false,
+        gitRepoProviderDropdownOpen: false,
         // 保存相关
         hasUnsavedChanges: false,
         originalConfig: null,
