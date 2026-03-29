@@ -864,6 +864,36 @@ function buildRepoForwardNodes(config: GitPushConfig, updates: GitUpdateItem[]):
     return buildForwardNodesFromTexts(texts);
 }
 
+function buildRepoForwardNodesWithNotice(
+    config: GitPushConfig,
+    updates: GitUpdateItem[],
+    notice: string
+): unknown[] {
+    const repoMap = new Map<string, GitUpdateItem[]>();
+
+    for (const item of updates) {
+        const list = repoMap.get(item.repoPath) || [];
+        list.push(item);
+        repoMap.set(item.repoPath, list);
+    }
+
+    const texts = [
+        notice,
+        ...Array.from(repoMap.entries()).map(([repoPath, repoUpdates]) =>
+            buildRepoText(config, repoPath, repoUpdates)
+        )
+    ];
+
+    return buildForwardNodesFromTexts(texts);
+}
+
+const RENDER_FALLBACK_NOTICE = '⚠️ 渲染失败，请检查渲染插件是否安装或正常运行';
+
+function withRenderFallbackNotice(text: string): string {
+    const content = String(text || '').trim();
+    return content ? `${RENDER_FALLBACK_NOTICE}\n\n${content}` : RENDER_FALLBACK_NOTICE;
+}
+
 async function sendImageMessage(targetId: string, base64: string, isGroup: boolean): Promise<void> {
     const action = isGroup ? 'send_group_msg' : 'send_private_msg';
     const idKey = isGroup ? 'group_id' : 'user_id';
@@ -888,6 +918,7 @@ async function sendUpdates(
     const users = overrideTargets?.users || config.notifyUsers || [];
     if (groups.length === 0 && users.length === 0) return;
 
+    let renderFailed = false;
     if (config.renderMode === 'render') {
         const html = buildRenderHtml(config, updates);
         const base64 = await renderWithPuppeteer(html);
@@ -896,10 +927,27 @@ async function sendUpdates(
             for (const uid of users) await sendImageMessage(uid, base64, false);
             return;
         }
+        renderFailed = true;
+        pluginState.logger.warn('渲染推送失败，已自动降级为文本推送，请检查渲染插件是否安装或正常运行');
     }
 
     const repoCount = new Set(updates.map(item => item.repoPath)).size;
     const text = buildTextMessage(config, updates);
+
+    if (renderFailed) {
+        const fallbackText = withRenderFallbackNotice(text);
+
+        if (repoCount > 1) {
+            const nodes = buildRepoForwardNodesWithNotice(config, updates, RENDER_FALLBACK_NOTICE);
+            for (const gid of groups) await sendForwardMessage(gid, nodes, true, () => sendTextMessage(gid, fallbackText, true));
+            for (const uid of users) await sendForwardMessage(uid, nodes, false, () => sendTextMessage(uid, fallbackText, false));
+            return;
+        }
+
+        for (const gid of groups) await sendTextMessage(gid, fallbackText, true);
+        for (const uid of users) await sendTextMessage(uid, fallbackText, false);
+        return;
+    }
 
     if (repoCount > 1) {
         const nodes = buildRepoForwardNodes(config, updates);
