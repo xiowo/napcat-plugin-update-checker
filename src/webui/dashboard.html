@@ -831,7 +831,7 @@
       </div>
     </header>
 
-    <div class="flex-1 overflow-auto p-4 lg:p-8 relative">
+    <div class="flex-1 overflow-auto p-4 lg:p-8 relative" x-ref="mainScrollContainer">
       <!-- 彩蛋二级隐藏界面 -->
       <div x-show="showSecretPanel" x-cloak x-transition:enter="secret-panel-enter"
         x-transition:enter-start="secret-panel-enter" x-transition:enter-end="secret-panel-enter-active"
@@ -1299,7 +1299,7 @@
                       <button @click="installPlugin(plugin)" class="btn text-sm shrink-0"
                         style="background: #dcfce7; color: #166534;"
                         :disabled="!!installingPlugins[plugin.id || plugin.name]">
-                        <span x-show="!installingPlugins[plugin.id || plugin.name]">可更新~</span>
+                        <span x-show="!installingPlugins[plugin.id || plugin.name]">可更新</span>
                         <span x-show="installingPlugins[plugin.id || plugin.name]">更新中...</span>
                       </button>
                     </template>
@@ -1446,7 +1446,7 @@
           </div>
           <div class="space-y-4">
             <div class="text-sm mb-2" style="color: var(--text-secondary)">
-              选择一个下载镜像以安装插件。默认已经自动选择，您也可以自定义并测试速度。
+              选择一个下载镜像以安装插件。点击测试按钮后自动测速并选择。
             </div>
 
             <div class="max-h-64 overflow-y-auto space-y-2 pr-1">
@@ -2936,8 +2936,8 @@
       </div>
     </div>
 
-    <!-- 右下角保存按钮 -->
-    <div x-show="hasUnsavedChanges" x-transition class="fixed bottom-6 right-6 z-50" x-cloak>
+    <!-- 右下角保存按钮（仅插件设置页显示） -->
+    <div x-show="hasUnsavedChanges && currentTab === 'pluginSettings'" x-transition class="fixed bottom-6 right-6 z-50" x-cloak>
       <button @click="saveConfig()" class="btn btn-primary flex items-center gap-2 px-6 py-3 shadow-lg">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -3588,8 +3588,13 @@
           const normalized = this.normalizeHexColor(color);
           if (!normalized) return false;
 
-          const light = this.mixColor(normalized, '#ffffff', 0.72);
-          const hover = this.mixColor(normalized, '#000000', 0.08);
+          const isDarkTheme = this.theme === 'dark';
+          const light = isDarkTheme
+            ? this.mixColor(normalized, '#000000', 0.68)
+            : this.mixColor(normalized, '#ffffff', 0.72);
+          const hover = isDarkTheme
+            ? this.mixColor(normalized, '#000000', 0.55)
+            : this.mixColor(normalized, '#000000', 0.08);
 
           this.selectedThemeColor = normalized;
           this.customThemeColor = normalized;
@@ -3629,16 +3634,54 @@
 
         toggleTheme() {
           this.applyTheme(this.theme === 'dark' ? 'light' : 'dark');
+          this.applyPrimaryColor(this.selectedThemeColor || '#e8b896', false);
           showToast(this.theme === 'dark' ? '已切换为深色主题' : '已切换为浅色主题', 'info');
         },
 
+        resetMainScrollPosition(forceWindowTop = false) {
+          const scroller = this.$refs?.mainScrollContainer;
+          if (scroller && typeof scroller.scrollTop === 'number') {
+            scroller.scrollTop = 0;
+          }
+
+          if (forceWindowTop) {
+            window.scrollTo(0, 0);
+          }
+        },
+
+        setupMobileReloadLayoutFix() {
+          if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+          }
+
+          const reset = () => this.resetMainScrollPosition(true);
+
+          requestAnimationFrame(() => {
+            reset();
+            requestAnimationFrame(reset);
+          });
+
+          setTimeout(reset, 80);
+          setTimeout(reset, 260);
+
+          window.addEventListener('pageshow', () => {
+            setTimeout(reset, 0);
+          });
+
+          window.addEventListener('orientationchange', () => {
+            setTimeout(reset, 120);
+          });
+        },
+
         async init() {
+          this.setupMobileReloadLayoutFix();
           this.initTheme();
           await this.fetchStatus();
           await this.fetchGitConfig();
           this.fetchInstalledPlugins();
           this.fetchMarketPlugins();
           this.fetchMirrors();
+          this.resetMainScrollPosition(true);
           setInterval(() => this.fetchStatus(), 30000);
         },
 

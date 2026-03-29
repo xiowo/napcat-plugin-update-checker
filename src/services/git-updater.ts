@@ -1167,7 +1167,7 @@ export async function runGitPushDebugForGroup(
 
     return {
         ok: true,
-        message: updates > 0 ? `已向当前群推送 ${updates} 条更新信息` : '已执行立即检测，但没有可推送内容',
+        message: updates > 0 ? `已向当前群推送 ${updates} 条更新信息` : '已执行检测，所有仓库都是最新的~',
         matched,
         updates
     };
