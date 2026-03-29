@@ -8,6 +8,7 @@ import { DEFAULT_CONFIG } from '../config';
 import { checkAllUpdates, installPlugin } from './updater';
 import { getStoreUpdatesFromRegistry, markStoreUpdateInstalled } from './update-registry';
 import { ensureGitDefaultBranches, runGitPushCheck } from './git-updater';
+import { buildForwardNodesFromTexts, sendForwardMessage } from './forward-message';
 import type { UpdateInfo } from '../types';
 
 /** 首次商店检查定时器（用于 stopScheduler 时清理） */
@@ -127,75 +128,21 @@ function buildNotifyText(updates: UpdateInfo[]): string {
     return lines.join('\n');
 }
 
-function getForwardIdentity(): { userId: string; nickname: string } {
-    let userId = '3889929917';
-    let nickname = '🦊小助手';
-
-    if (pluginState.config.customForwardInfo) {
-        const customQQ = pluginState.config.customForwardQQ;
-        const customName = pluginState.config.customForwardName;
-
-        if (customQQ && customQQ.trim()) userId = customQQ.trim();
-        else if (pluginState.selfId) userId = String(pluginState.selfId);
-
-        if (customName && customName.trim()) {
-            nickname = customName.trim();
-        } else {
-            nickname = String(pluginState.selfNickname || '🦊小助手');
-        }
-    }
-
-return { userId, nickname };
-}
-
-function createForwardNode(userId: string, nickname: string, text: string): unknown {
-    return {
-        type: 'node',
-        data: {
-            user_id: userId,
-            nickname,
-            content: [{ type: 'text', data: { text } }]
-        }
-    };
-}
-
 /** 构建合并转发节点 */
 function buildForwardNodes(updates: UpdateInfo[]): unknown[] {
-    const { userId, nickname } = getForwardIdentity();
-    const result: unknown[] = [createForwardNode(userId, nickname, '🔄 插件更新提醒')];
     const indexLookup = buildUpdateIndexLookup();
+    const texts: string[] = ['🔄 插件更新提醒'];
 
     for (const update of updates) {
-        result.push(createForwardNode(userId, nickname, buildSingleNotifyText(update, resolveUpdateIndex(update, indexLookup))));
+        texts.push(buildSingleNotifyText(update, resolveUpdateIndex(update, indexLookup)));
     }
 
     if (pluginState.config.updateMode === 'notify') {
         const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
-        result.push(createForwardNode(
-            userId,
-            nickname,
-            `发送 "${prefix}全部" 执行更新\n发送 "${prefix}编号1" 指定更新对应编号插件`
-        ));
+        texts.push(`发送 "${prefix}全部" 执行更新\n发送 "${prefix}编号1" 指定更新对应编号插件`);
     }
 
-    return result;
-}
-
-/** 发送合并转发 */
-async function sendForwardMessage(targetId: string, nodes: unknown[], fallbackText: string, isGroup: boolean): Promise<void> {
-    if (!canSendMessage()) return;
-
-    try {
-        await pluginState.ctx.actions.call(
-            (isGroup ? 'send_group_forward_msg' : 'send_private_forward_msg') as 'send_group_forward_msg',
-            { [isGroup ? 'group_id' : 'user_id']: Number(targetId), messages: nodes } as never,
-            pluginState.ctx.adapterName,
-            pluginState.ctx.pluginManager.config
-        );
-    } catch (e) {
-        pluginState.logger.warn('发送合并转发失败，回退到普通消息');
-        await sendTextMessage(targetId, fallbackText, isGroup);
-    }
+    return buildForwardNodesFromTexts(texts);
 }
 
 function buildBroadcastTasks(
@@ -227,7 +174,7 @@ async function pushNotification(updates: UpdateInfo[]): Promise<void> {
         const nodes = buildForwardNodes(updates);
         const fallbackText = buildNotifyText(updates);
         const tasks = buildBroadcastTasks(groups, users, (targetId, isGroup) =>
-            sendForwardMessage(targetId, nodes, fallbackText, isGroup)
+            sendForwardMessage(targetId, nodes, isGroup, () => sendTextMessage(targetId, fallbackText, isGroup))
         );
         await sendWithRateLimit(tasks);
         return;
@@ -262,28 +209,19 @@ function buildUpdateResultText(result: { update: UpdateInfo; ok: boolean }[]): s
 
 /** 构建自动更新结果合并转发节点 */
 function buildResultForwardNodes(result: { update: UpdateInfo; ok: boolean }[]): unknown[] {
-    const { userId, nickname } = getForwardIdentity();
-    const nodes: unknown[] = [createForwardNode(userId, nickname, '🔄 插件自动更新完成')];
     const prefix = pluginState.config.commandPrefix || DEFAULT_CONFIG.commandPrefix;
     const indexLookup = buildUpdateIndexLookup();
+    const texts: string[] = ['🔄 插件自动更新完成'];
 
     for (const item of result) {
         const u = item.update;
         const index = resolveUpdateIndex(u, indexLookup);
-        nodes.push(createForwardNode(
-            userId,
-            nickname,
-            `${item.ok ? '✅' : '❌'} ${index ? `[#${index}] ` : ''}${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`
-        ));
+        texts.push(`${item.ok ? '✅' : '❌'} ${index ? `[#${index}] ` : ''}${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`);
     }
 
-    nodes.push(createForwardNode(
-        userId,
-        nickname,
-        `如需手动指定更新，发送 "${prefix}编号1"\n如需先刷新编号库，发送 "${prefix}检查"`
-    ));
+    texts.push(`如需手动指定更新，发送 "${prefix}编号1"\n如需先刷新编号库，发送 "${prefix}检查"`);
 
-    return nodes;
+    return buildForwardNodesFromTexts(texts);
 }
 
 /** 推送自动更新结果 */
@@ -298,7 +236,7 @@ async function pushUpdateResult(result: { update: UpdateInfo; ok: boolean }[]): 
         const nodes = buildResultForwardNodes(result);
         const fallbackText = buildUpdateResultText(result);
         const tasks = buildBroadcastTasks(groups, users, (targetId, isGroup) =>
-            sendForwardMessage(targetId, nodes, fallbackText, isGroup)
+            sendForwardMessage(targetId, nodes, isGroup, () => sendTextMessage(targetId, fallbackText, isGroup))
         );
         await sendWithRateLimit(tasks);
         return;

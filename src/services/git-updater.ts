@@ -5,6 +5,7 @@
 import { pluginState } from '../core/state';
 import type { GitPushConfig, GitPushRepoConfig, GitUpdateCache, GitProviderName } from '../types';
 import { getDefaultBranch, getRepositoryData } from './git-api';
+import { buildForwardNodesFromTexts, sendForwardMessage } from './forward-message';
 import { markGitDetectedVersion } from './update-registry';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -818,6 +819,51 @@ async function sendTextMessage(targetId: string, text: string, isGroup: boolean)
     });
 }
 
+function buildRepoText(config: GitPushConfig, repoPath: string, updates: GitUpdateItem[]): string {
+    const lines: string[] = [
+        `📢 ${config.name}`,
+        ''
+    ];
+
+    for (const item of updates) {
+        lines.push(`[${providerEmoji(item.provider)}] ${item.repoPath}${item.release ? ' [Release]' : ''}`);
+        if (item.branch || item.tag || item.sha) {
+            const meta = [
+                item.branch ? `分支: ${item.branch}` : '',
+                item.tag ? `标签: ${item.tag}` : '',
+                item.sha ? `SHA: ${item.sha}` : '',
+            ].filter(Boolean).join(' | ');
+            if (meta) lines.push(`  ${meta}`);
+        }
+        if (item.timeInfo) lines.push(`  ${item.timeInfo.replace(/<[^>]+>/g, '')}`);
+        if (item.message) lines.push(`  ${item.message}`);
+        if (item.stats) {
+            lines.push(`  ${item.stats.files} 个文件发生变化，+${item.stats.additions} / -${item.stats.deletions}`);
+        }
+        if (item.timestamp) lines.push(`  ${item.timestamp}`);
+        if (item.url) lines.push(`  ${item.url}`);
+        lines.push('');
+    }
+
+    return lines.join('\n').trim();
+}
+
+function buildRepoForwardNodes(config: GitPushConfig, updates: GitUpdateItem[]): unknown[] {
+    const repoMap = new Map<string, GitUpdateItem[]>();
+
+    for (const item of updates) {
+        const list = repoMap.get(item.repoPath) || [];
+        list.push(item);
+        repoMap.set(item.repoPath, list);
+    }
+
+    const texts = Array.from(repoMap.entries()).map(([repoPath, repoUpdates]) =>
+        buildRepoText(config, repoPath, repoUpdates)
+    );
+
+    return buildForwardNodesFromTexts(texts);
+}
+
 async function sendImageMessage(targetId: string, base64: string, isGroup: boolean): Promise<void> {
     const action = isGroup ? 'send_group_msg' : 'send_private_msg';
     const idKey = isGroup ? 'group_id' : 'user_id';
@@ -852,7 +898,16 @@ async function sendUpdates(
         }
     }
 
+    const repoCount = new Set(updates.map(item => item.repoPath)).size;
     const text = buildTextMessage(config, updates);
+
+    if (repoCount > 1) {
+        const nodes = buildRepoForwardNodes(config, updates);
+        for (const gid of groups) await sendForwardMessage(gid, nodes, true, () => sendTextMessage(gid, text, true));
+        for (const uid of users) await sendForwardMessage(uid, nodes, false, () => sendTextMessage(uid, text, false));
+        return;
+    }
+
     for (const gid of groups) await sendTextMessage(gid, text, true);
     for (const uid of users) await sendTextMessage(uid, text, false);
 }

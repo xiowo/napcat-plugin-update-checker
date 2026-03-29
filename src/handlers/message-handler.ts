@@ -22,6 +22,7 @@ function getPluginVersion(): string {
 }
 import { checkAllUpdates, installPlugin } from '../services/updater';
 import { runGitPushDebugForGroup } from '../services/git-updater';
+import { createForwardNode, getForwardIdentity } from '../services/forward-message';
 import {
     getStoreUpdateByIndex,
     getStoreUpdatesFromRegistry,
@@ -380,7 +381,31 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                             `发送 "${prefix}全部" 执行更新`,
                             `发送 "${prefix}编号1" 指定更新对应编号插件`,
                         ];
-                        await sendReply(ctx, event, lines.join('\n'));
+                        const text = lines.join('\n');
+
+                        if (updates.length >= 2) {
+                            const { userId, nickname } = getForwardIdentity();
+                            const detailLines = indexedUpdates.length > 0
+                                ? indexedUpdates.map(item => `📦 [#${item.index}] ${item.displayName}\n   ${item.update.currentVersion} → ${item.update.latestVersion}`)
+                                : updates.map(u => `📦 ${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`);
+                            const nodes: ForwardNode[] = [
+                                createForwardNode(userId, nickname, '🔄 插件更新提醒') as ForwardNode,
+                                ...detailLines.map(line => createForwardNode(userId, nickname, line) as ForwardNode),
+                                createForwardNode(
+                                    userId,
+                                    nickname,
+                                    `发送 "${prefix}全部" 执行更新\n发送 "${prefix}编号1" 指定更新对应编号插件`
+                                ) as ForwardNode,
+                            ];
+
+                            const target = isGroupMessage(event) ? event.group_id : event.user_id;
+                            const ok = await sendForwardMsg(ctx, target, isGroupMessage(event), nodes);
+                            if (!ok) {
+                                await sendReply(ctx, event, text);
+                            }
+                        } else {
+                            await sendReply(ctx, event, text);
+                        }
                     }
                 } catch (error) {
                     pluginState.logger.error('检查更新失败:', error);
