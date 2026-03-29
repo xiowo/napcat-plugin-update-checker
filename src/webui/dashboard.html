@@ -705,22 +705,22 @@
       x-transition:leave="secret-panel-leave" x-transition:leave-start="secret-panel-leave"
       x-transition:leave-end="secret-panel-leave-active" class="card max-w-md w-full mx-4 secret-panel">
       <div class="px-5 py-4 border-b border-[var(--border)]">
-        <h3 class="font-bold text-lg" style="color: var(--text)">✨ 确认一下</h3>
+        <h3 class="font-bold text-lg" style="color: var(--text)" x-text="confirmDialogTitle || '确认操作'"></h3>
       </div>
       <div class="p-5">
         <div class="flex items-start gap-3 mb-4">
-          <span class="text-4xl star-pulse">⭐</span>
+          <span class="text-4xl star-pulse" x-text="confirmDialogIcon || '⭐'"></span>
           <div class="flex-1">
             <p class="text-base leading-relaxed" style="color: var(--text);" x-text="confirmDialogMessage">
             </p>
           </div>
         </div>
         <div class="flex justify-end gap-3">
-          <button @click="handleConfirmCancel" class="btn btn-secondary transition-all hover:scale-105">
-            还没去呢
+          <button @click="handleConfirmCancel" class="btn btn-secondary transition-all hover:scale-105"
+            x-text="confirmDialogCancelText || '取消'">
           </button>
-          <button @click="handleConfirmOk" class="btn btn-primary transition-all hover:scale-105">
-            已点星星！
+          <button @click="handleConfirmOk" class="btn btn-primary transition-all hover:scale-105"
+            x-text="confirmDialogOkText || '确认'">
           </button>
         </div>
       </div>
@@ -3116,8 +3116,13 @@
           customForwardName: '',
         },
         showConfirmDialog: false,
+        confirmDialogTitle: '确认操作',
+        confirmDialogIcon: '⭐',
         confirmDialogMessage: '',
+        confirmDialogCancelText: '取消',
+        confirmDialogOkText: '确认',
         confirmCallback: null,
+        confirmCancelCallback: null,
         // 更新模式下拉菜单状态
         updateModeDropdownOpen: false,
         gitRenderModeDropdownOpen: false,
@@ -4523,7 +4528,11 @@
         },
 
         async saveSecretConfig() {
+          this.confirmDialogTitle = '✨ 确认一下';
+          this.confirmDialogIcon = '⭐';
           this.confirmDialogMessage = '确认给项目仓库点小星星了吗？没点星星的都是大坏蛋！';
+          this.confirmDialogCancelText = '还没去呢';
+          this.confirmDialogOkText = '已点星星！';
           this.confirmCallback = async () => {
             try {
               await this.api('/secret-config', 'POST', this.secretConfig);
@@ -4535,6 +4544,9 @@
               showToast('保存失败: ' + e.message, 'error');
             }
           };
+          this.confirmCancelCallback = () => {
+            showToast('请先去 GitHub 给项目点个小星星吧！', 'info');
+          };
           this.showConfirmDialog = true;
         },
 
@@ -4542,14 +4554,26 @@
           this.showConfirmDialog = false;
           if (this.confirmCallback) {
             this.confirmCallback();
-            this.confirmCallback = null;
           }
+          this.confirmCallback = null;
+          this.confirmCancelCallback = null;
+          this.confirmDialogTitle = '确认操作';
+          this.confirmDialogIcon = '⭐';
+          this.confirmDialogCancelText = '取消';
+          this.confirmDialogOkText = '确认';
         },
 
         handleConfirmCancel() {
           this.showConfirmDialog = false;
+          if (this.confirmCancelCallback) {
+            this.confirmCancelCallback();
+          }
           this.confirmCallback = null;
-          showToast('请先去 GitHub 给项目点个小星星吧！', 'info');
+          this.confirmCancelCallback = null;
+          this.confirmDialogTitle = '确认操作';
+          this.confirmDialogIcon = '⭐';
+          this.confirmDialogCancelText = '取消';
+          this.confirmDialogOkText = '确认';
         },
 
         formatUptime(seconds) {
@@ -5107,15 +5131,29 @@
             return;
           }
 
-          const next = [...this.gitPushConfigs];
-          next.splice(index, 1);
-          try {
-            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
-            this.gitPushConfigs = next;
-            showToast('已删除推送配置', 'success');
-          } catch (e) {
-            showToast('删除失败: ' + e.message, 'error');
-          }
+          this.confirmDialogTitle = '删除确认';
+          this.confirmDialogIcon = '⚠️';
+          this.confirmDialogMessage = `确认删除推送列表「${target.name || '未命名列表'}」吗？删除后将无法恢复。`;
+          this.confirmDialogCancelText = '取消删除';
+          this.confirmDialogOkText = '确认删除';
+
+          this.confirmCallback = async () => {
+            const next = [...this.gitPushConfigs];
+            next.splice(index, 1);
+            try {
+              await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+              this.gitPushConfigs = next;
+              showToast('已删除推送配置', 'success');
+            } catch (e) {
+              showToast('删除失败: ' + e.message, 'error');
+            }
+          };
+
+          this.confirmCancelCallback = () => {
+            showToast('已取消删除', 'info');
+          };
+
+          this.showConfirmDialog = true;
         },
 
         async toggleGitPushEnabled(index, enabled) {
