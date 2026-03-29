@@ -1894,6 +1894,15 @@
                   </label>
                 </div>
 
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text-secondary)">默认推送类型</label>
+                  <select x-model="gitRenderMode" class="input w-full">
+                    <option value="text">文本推送</option>
+                    <option value="render">渲染推送</option>
+                  </select>
+                  <p class="text-xs mt-1" style="color: var(--text-secondary)">新增推送列表时将默认选中此类型</p>
+                </div>
+
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <div class="font-medium" style="color: var(--text)">自动检查</div>
