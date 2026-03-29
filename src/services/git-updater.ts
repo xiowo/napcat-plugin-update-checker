@@ -1143,7 +1143,7 @@ export async function runGitPushDebugForGroup(
 
     const repoUpdatesMap = new Map<string, GitUpdateItem[]>();
     for (const [key, repo] of repoKeyToConfig.entries()) {
-        const repoUpdates = await collectRepoUpdates(repo, cache, { forcePush: true });
+        const repoUpdates = await collectRepoUpdates(repo, cache);
         repoUpdatesMap.set(key, repoUpdates);
     }
 

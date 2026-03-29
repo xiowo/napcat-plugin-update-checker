@@ -336,9 +336,10 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     `[= 插件更新检测帮助 =]`,
                     `${prefix}帮助 - 显示帮助信息`,
                     `${prefix}状态 - 查看运行状态`,
-                    `${prefix}version - 查看插件版本`,
                     `${prefix}检查 - 检查所有插件更新`,
                     `${prefix}全部 - 更新所有可更新的插件`,
+                    `${prefix}仓库检查 - 检查仓库更新并立即推送当前群`,
+                    `${prefix}version - 查看插件版本`,
                 ].join('\n');
                 await sendReply(ctx, event, helpText);
                 break;
@@ -413,6 +414,32 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                 }
 
                 if (isGroupMessage(event)) setCooldown(event.group_id, '检查');
+                break;
+            }
+
+            case '仓库检查': {
+                if (await denyIfNoPermission(ctx, event)) return;
+                if (!isGroupMessage(event)) {
+                    await sendReply(ctx, event, '❌ 该命令仅支持群聊使用');
+                    return;
+                }
+                if (await guardGroupCooldown(ctx, event, '仓库检查')) return;
+
+                await sendReply(ctx, event, '🔍 正在检查仓库更新，请稍候...');
+
+                try {
+                    const result = await runGitPushDebugForGroup(String(event.group_id));
+                    if (result.ok) {
+                        await sendReply(ctx, event, `✅ ${result.message}`);
+                    } else {
+                        await sendReply(ctx, event, `❌ ${result.message}`);
+                    }
+                } catch (error) {
+                    pluginState.logger.error('仓库更新检查失败:', error);
+                    await sendReply(ctx, event, '❌ 仓库更新检查失败，请查看日志获取详细信息');
+                }
+
+                setCooldown(event.group_id, '仓库检查');
                 break;
             }
 
