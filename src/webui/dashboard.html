@@ -1049,7 +1049,7 @@
                     <div class="text-xs text-slate-500 truncate" x-text="source.url"></div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <button x-show="!source.isBuiltIn" @click="editSource(index)"
+                    <button x-show="!source.isBuiltIn || source.name === '社区插件库'" @click="editSource(index)"
                       class="text-slate-400 hover:text-[var(--primary)]">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -3941,6 +3941,12 @@
             return;
           }
 
+          const sourceName = String(this.newSource.name || '').trim();
+          if (this.pluginSources.some(source => String(source.name || '').trim() === sourceName)) {
+            showToast('源名称不能重复', 'error');
+            return;
+          }
+
           // 验证URL格式
           try {
             new URL(this.newSource.url);
@@ -3950,7 +3956,7 @@
           }
 
           this.pluginSources.push({
-            name: this.newSource.name,
+            name: sourceName,
             url: this.newSource.url,
             enabled: true
           });

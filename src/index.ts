@@ -666,13 +666,17 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 const oldSources = pluginState.config.pluginSources || [];
                 const nextSources = normalizePluginSourcesWithLockedName(body.pluginSources, oldSources);
 
-                // 若检测到同 URL 改名，记录日志但以旧名称为准
-                const oldNameByUrl = new Map(oldSources.map(s => [String(s.url || '').trim(), s.name]));
-                for (const s of nextSources) {
-                    const oldName = oldNameByUrl.get(s.url);
-                    if (oldName && oldName !== s.name) {
-                        ctx.logger.warn(`插件源名称不可修改，已保留原名称: ${oldName} (${s.url})`);
+                // 源名称不能重复
+                const nameSet = new Set<string>();
+                for (const source of nextSources) {
+                    const name = String(source.name || '').trim();
+                    if (!name) {
+                        return res.json({ code: -1, message: '源名称不能为空' });
                     }
+                    if (nameSet.has(name)) {
+                        return res.json({ code: -1, message: '源名称不能重复' });
+                    }
+                    nameSet.add(name);
                 }
 
                 pluginState.config.pluginSources = nextSources;
