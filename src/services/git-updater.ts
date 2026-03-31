@@ -85,14 +85,38 @@ function formatAbsoluteTime(raw?: string): string {
     if (!raw) return '';
     const date = new Date(raw);
     if (Number.isNaN(date.getTime())) return raw;
-    return new Intl.DateTimeFormat('zh-CN', {
+
+    const parts = new Intl.DateTimeFormat('zh-CN', {
         timeZone: 'Asia/Shanghai',
         year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+        month: 'numeric',
+        day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).formatToParts(date);
+
+    const getPart = (type: string) => parts.find(item => item.type === type)?.value || '';
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+    const hour = getPart('hour');
+    const minute = getPart('minute');
+    const second = getPart('second');
+
+    if (!year || !month || !day) return new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
     }).format(date);
+
+    return `${year}/${month}/${day} ${hour}:${minute}:${second}`;
 }
 
 function timeAgo(raw?: string): string {
@@ -658,35 +682,24 @@ function buildRepoUniqueKey(repo: GitPushRepoConfig): string {
     return [provider, owner, name, commitEnabled, commitBranch, releaseEnabled, releaseBranch].join('|');
 }
 
-function buildTextMessage(config: GitPushConfig, updates: GitUpdateItem[]): string {
-    const repoNames = Array.from(new Set(updates.map(item => item.repoPath)));
+function buildUpdateTextBlock(item: GitUpdateItem): string {
     const lines: string[] = [
-        `📢 ${config.name}`,
-        `仓库列表: ${repoNames.join('、') || '未配置'}`,
-        ''
+        `📦 ${providerEmoji(item.provider)}仓库更新通知`,
+        `仓库：${item.repoPath}`,
+        `${item.release ? '最新发布' : '最新提交'}：${item.message || '暂无更新信息'}`,
+        `${item.release ? '发布者' : '提交者'}：${item.authorName || 'Unknown'}`,
+        `${item.release ? '发布时间' : '提交时间'}：${item.timestamp || '未知'}`
     ];
 
-    for (const item of updates) {
-        lines.push(`[${providerEmoji(item.provider)}] ${item.repoPath}${item.release ? ' [Release]' : ''}`);
-        if (item.branch || item.tag || item.sha) {
-            const meta = [
-                item.branch ? `分支: ${item.branch}` : '',
-                item.tag ? `标签: ${item.tag}` : '',
-                item.sha ? `SHA: ${item.sha}` : '',
-            ].filter(Boolean).join(' | ');
-            if (meta) lines.push(`  ${meta}`);
-        }
-        if (item.timeInfo) lines.push(`  ${item.timeInfo.replace(/<[^>]+>/g, '')}`);
-        if (item.message) lines.push(`  ${item.message}`);
-        if (item.stats) {
-            lines.push(`  ${item.stats.files} 个文件发生变化，+${item.stats.additions} / -${item.stats.deletions}`);
-        }
-        if (item.timestamp) lines.push(`  ${item.timestamp}`);
-        if (item.url) lines.push(`  ${item.url}`);
-        lines.push('');
+    if (item.url) {
+        lines.push(`${item.release ? '发布链接' : '提交链接'}：${item.url}`);
     }
 
-    return lines.join('\n').trim();
+    return lines.join('\n');
+}
+
+function buildTextMessage(_config: GitPushConfig, updates: GitUpdateItem[]): string {
+    return updates.map(item => buildUpdateTextBlock(item)).join('\n\n').trim();
 }
 
 function buildAvatarHtml(src: string | undefined, fallback: string, className = ''): string {
@@ -819,33 +832,8 @@ async function sendTextMessage(targetId: string, text: string, isGroup: boolean)
     });
 }
 
-function buildRepoText(config: GitPushConfig, repoPath: string, updates: GitUpdateItem[]): string {
-    const lines: string[] = [
-        `📢 ${config.name}`,
-        ''
-    ];
-
-    for (const item of updates) {
-        lines.push(`[${providerEmoji(item.provider)}] ${item.repoPath}${item.release ? ' [Release]' : ''}`);
-        if (item.branch || item.tag || item.sha) {
-            const meta = [
-                item.branch ? `分支: ${item.branch}` : '',
-                item.tag ? `标签: ${item.tag}` : '',
-                item.sha ? `SHA: ${item.sha}` : '',
-            ].filter(Boolean).join(' | ');
-            if (meta) lines.push(`  ${meta}`);
-        }
-        if (item.timeInfo) lines.push(`  ${item.timeInfo.replace(/<[^>]+>/g, '')}`);
-        if (item.message) lines.push(`  ${item.message}`);
-        if (item.stats) {
-            lines.push(`  ${item.stats.files} 个文件发生变化，+${item.stats.additions} / -${item.stats.deletions}`);
-        }
-        if (item.timestamp) lines.push(`  ${item.timestamp}`);
-        if (item.url) lines.push(`  ${item.url}`);
-        lines.push('');
-    }
-
-    return lines.join('\n').trim();
+function buildRepoText(_config: GitPushConfig, _repoPath: string, updates: GitUpdateItem[]): string {
+    return updates.map(item => buildUpdateTextBlock(item)).join('\n\n').trim();
 }
 
 function buildRepoForwardNodes(config: GitPushConfig, updates: GitUpdateItem[]): unknown[] {
