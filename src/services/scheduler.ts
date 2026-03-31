@@ -145,6 +145,27 @@ function buildForwardNodes(updates: UpdateInfo[]): unknown[] {
     return buildForwardNodesFromTexts(texts);
 }
 
+function getFirstMasterQQ(): string {
+    return String(pluginState.config.masterQQ || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)[0] || '';
+}
+
+function resolveNotificationTargets(): { groups: string[]; users: string[] } {
+    const groups = Array.isArray(pluginState.config.notifyGroups) ? [...pluginState.config.notifyGroups] : [];
+    const users = Array.isArray(pluginState.config.notifyUsers) ? [...pluginState.config.notifyUsers] : [];
+
+    if (pluginState.config.pushUpdateToMaster !== false) {
+        const master = getFirstMasterQQ();
+        if (master && !users.includes(master)) {
+            users.unshift(master);
+        }
+    }
+
+    return { groups, users };
+}
+
 function buildBroadcastTasks(
     groups: string[],
     users: string[],
@@ -160,8 +181,7 @@ function buildBroadcastTasks(
 async function pushNotification(updates: UpdateInfo[]): Promise<void> {
     if (updates.length === 0) return;
 
-    const groups = pluginState.config.notifyGroups;
-    const users = pluginState.config.notifyUsers;
+    const { groups, users } = resolveNotificationTargets();
 
     if (groups.length === 0 && users.length === 0) {
         pluginState.logger.warn('没有配置通知目标（notifyGroups 和 notifyUsers 均为空），跳过推送');
@@ -228,8 +248,7 @@ function buildResultForwardNodes(result: { update: UpdateInfo; ok: boolean }[]):
 async function pushUpdateResult(result: { update: UpdateInfo; ok: boolean }[]): Promise<void> {
     if (result.length === 0) return;
 
-    const groups = pluginState.config.notifyGroups;
-    const users = pluginState.config.notifyUsers;
+    const { groups, users } = resolveNotificationTargets();
     if (groups.length === 0 && users.length === 0) return;
 
     if (result.length >= 2) {

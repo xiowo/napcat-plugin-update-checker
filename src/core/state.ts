@@ -47,6 +47,7 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     else if (Array.isArray(raw.notifyGroups)) out.notifyGroups = raw.notifyGroups.map(String).filter(Boolean);
     if (typeof raw.notifyUsers === 'string') out.notifyUsers = raw.notifyUsers.split(',').map((s: string) => s.trim()).filter(Boolean);
     else if (Array.isArray(raw.notifyUsers)) out.notifyUsers = raw.notifyUsers.map(String).filter(Boolean);
+    if (typeof raw.pushUpdateToMaster === 'boolean') out.pushUpdateToMaster = raw.pushUpdateToMaster;
     if (typeof raw.autoUpdatePlugins === 'string') out.autoUpdatePlugins = raw.autoUpdatePlugins.split(',').map((s: string) => s.trim()).filter(Boolean);
     else if (Array.isArray(raw.autoUpdatePlugins)) out.autoUpdatePlugins = raw.autoUpdatePlugins.map(String).filter(Boolean);
     if (typeof raw.ignoredPlugins === 'string') out.ignoredPlugins = raw.ignoredPlugins.split(',').map((s: string) => s.trim()).filter(Boolean);

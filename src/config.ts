@@ -20,6 +20,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
     checkInterval: 30,
     notifyGroups: [],
     notifyUsers: [],
+    pushUpdateToMaster: true,
     autoUpdatePlugins: [],
     ignoredPlugins: [],
     // 镜像相关配置

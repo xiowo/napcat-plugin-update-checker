@@ -2967,6 +2967,16 @@
             <div class="pt-1">
               <div class="font-medium mb-2" style="color: var(--text)">通知设置</div>
               <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="font-medium" style="color: var(--text)">推送更新至主人</div>
+                    <div class="text-xs" style="color: var(--text-secondary)">开启后将额外推送给主人列表中的第一个 QQ</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" x-model="config.pushUpdateToMaster" @change="saveConfig()">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
                 <div class="flex flex-col gap-2">
                   <label class="text-sm font-medium" style="color: var(--text-secondary)">通知群聊 (填群号，多个用英文逗号分隔)</label>
                   <input type="text" x-model="config.notifyGroupsStr" @input="markNonSwitchChanged()"
@@ -3051,6 +3061,7 @@
         checkInterval: 30,
         notifyGroups: [],
         notifyUsers: [],
+        pushUpdateToMaster: true,
         autoUpdatePlugins: [],
         ignoredPlugins: [],
         selectedRawMirror: '',
@@ -3828,6 +3839,7 @@
               selectedDownloadMirror: this.config.selectedDownloadMirror,
               notifyGroups: this.config.notifyGroups,
               notifyUsers: this.config.notifyUsers,
+              pushUpdateToMaster: this.config.pushUpdateToMaster,
               autoUpdatePlugins: this.config.autoUpdatePlugins,
               ignoredPlugins: this.config.ignoredPlugins
             });

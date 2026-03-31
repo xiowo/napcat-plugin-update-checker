@@ -35,6 +35,8 @@ export interface PluginConfig {
     notifyGroups: string[];
     /** 通知用户列表 */
     notifyUsers: string[];
+    /** 是否将更新通知推送给主人列表中的第一个 QQ（默认开启） */
+    pushUpdateToMaster?: boolean;
     /** 自动更新插件列表（空列表表示全部） */
     autoUpdatePlugins: string[];
     /** 忽略更新的插件列表 */

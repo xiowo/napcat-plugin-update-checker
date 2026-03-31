@@ -609,6 +609,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             }
             if (body?.notifyGroups !== undefined) pluginState.config.notifyGroups = body.notifyGroups;
             if (body?.notifyUsers !== undefined) pluginState.config.notifyUsers = body.notifyUsers;
+            if (body?.pushUpdateToMaster !== undefined) pluginState.config.pushUpdateToMaster = Boolean(body.pushUpdateToMaster);
             if (body?.enabled !== undefined) pluginState.config.enabled = body.enabled;
             if (body?.commandPrefix !== undefined) pluginState.config.commandPrefix = body.commandPrefix;
             if (body?.cooldownSeconds !== undefined) pluginState.config.cooldownSeconds = body.cooldownSeconds;
