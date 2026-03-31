@@ -21,7 +21,7 @@ function getPluginVersion(): string {
     return __PLUGIN_VERSION__ || 'unknown';
 }
 import { checkAllUpdates, installPlugin } from '../services/updater';
-import { runGitPushDebugForGroup } from '../services/git-updater';
+import { runGitPushCheck } from '../services/git-updater';
 import { createForwardNode, getForwardIdentity } from '../services/forward-message';
 import {
     getStoreUpdateByIndex,
@@ -338,7 +338,7 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     `${prefix}状态 - 查看运行状态`,
                     `${prefix}检查 - 检查所有插件更新`,
                     `${prefix}全部 - 更新所有可更新的插件`,
-                    `${prefix}仓库检查 - 检查仓库更新并立即推送当前群`,
+                    `${prefix}仓库检查 - 立即检查所有仓库并按配置推送`,
                     `${prefix}version - 查看插件版本`,
                 ].join('\n');
                 await sendReply(ctx, event, helpText);
@@ -419,27 +419,19 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
             case '仓库检查': {
                 if (await denyIfNoPermission(ctx, event)) return;
-                if (!isGroupMessage(event)) {
-                    await sendReply(ctx, event, '❌ 该命令仅支持群聊使用');
-                    return;
-                }
                 if (await guardGroupCooldown(ctx, event, '仓库检查')) return;
 
-                await sendReply(ctx, event, '🔍 正在检查仓库更新，请稍候...');
+                await sendReply(ctx, event, '🔍 正在立即检查所有仓库更新，并按配置推送，请稍候...');
 
                 try {
-                    const result = await runGitPushDebugForGroup(String(event.group_id));
-                    if (result.ok) {
-                        await sendReply(ctx, event, `✅ ${result.message}`);
-                    } else {
-                        await sendReply(ctx, event, `❌ ${result.message}`);
-                    }
+                    await runGitPushCheck();
+                    await sendReply(ctx, event, '✅ 已完成仓库检查，更新会按推送配置发送到对应群/用户');
                 } catch (error) {
                     pluginState.logger.error('仓库更新检查失败:', error);
                     await sendReply(ctx, event, '❌ 仓库更新检查失败，请查看日志获取详细信息');
                 }
 
-                setCooldown(event.group_id, '仓库检查');
+                if (isGroupMessage(event)) setCooldown(event.group_id, '仓库检查');
                 break;
             }
 
