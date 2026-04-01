@@ -1825,11 +1825,11 @@
                   <button @click="debugGitPush(push.id)" class="btn btn-secondary text-sm">立即检测并推送</button>
                   <button @click="editGitPush(index)" class="btn btn-secondary text-sm">编辑</button>
                   <button @click="removeGitPush(index)" class="btn text-sm"
-                    :disabled="String(push.name || '').trim() === 'AA狐狸插件更新检测'"
-                    :style="String(push.name || '').trim() === 'AA狐狸插件更新检测'
+                    :disabled="isAutoGitPushConfig(push)"
+                    :style="isAutoGitPushConfig(push)
                       ? 'background:#f3f4f6;color:#9ca3af;cursor:not-allowed;'
                       : 'background:#fee2e2;color:#991b1b;'"
-                    :title="String(push.name || '').trim() === 'AA狐狸插件更新检测' ? '默认推送列表不可删除' : ''">删除</button>
+                    :title="isAutoGitPushConfig(push) ? '自动推送列表不可删除' : ''">删除</button>
                 </div>
               </div>
 
@@ -2874,9 +2874,23 @@
               </div>
 
               <div>
-                <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送列表</label>
-                <input type="text" class="input w-full" value="AA狐狸插件更新检测" readonly disabled>
-                <p class="text-xs mt-1" style="color: var(--text-secondary)">开启后会自动加入该默认推送列表</p>
+                <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送列表名称</label>
+                <input type="text" class="input w-full" x-model="pluginSourceEditPushName"
+                  placeholder="例如：插件 Git 检测推送">
+                <p class="text-xs mt-1" style="color: var(--text-secondary)">这里的修改会同步到自动创建的推送列表</p>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送群</label>
+                  <input type="text" class="input w-full" x-model="pluginSourceEditPushNotifyGroupsStr"
+                    placeholder="群号，多个用逗号分隔">
+                </div>
+                <div>
+                  <label class="block text-sm mb-1" style="color: var(--text-secondary)">推送好友</label>
+                  <input type="text" class="input w-full" x-model="pluginSourceEditPushNotifyUsersStr"
+                    placeholder="QQ 号，多个用逗号分隔">
+                </div>
               </div>
 
               <div class="flex items-center justify-between">
@@ -3195,6 +3209,11 @@
         pluginSourceEditUseGit: false,
         pluginSourceEditDisableStoreCheck: false,
         pluginSourceEditRepoUrl: '',
+        pluginSourceEditPushName: '',
+        pluginSourceEditPushNotifyGroupsStr: '',
+        pluginSourceEditPushNotifyUsersStr: '',
+        AUTO_GIT_PUSH_CONFIG_ID: 'plugin-git-auto-default',
+        AUTO_GIT_PUSH_DEFAULT_NAME: 'AA狐狸插件更新检测',
         showGitApiConfigModal: false,
         showGitCustomProviderModal: false,
         customProviderForm: {
@@ -4891,6 +4910,38 @@
           return Array.isArray(list) && list.length > 0 ? list.join(', ') : fallback;
         },
 
+        normalizeTargetInputToArray(text) {
+          return String(text || '').split(/[,，\s]+/).map(v => String(v).trim()).filter(Boolean);
+        },
+
+        isSameStringArray(left, right) {
+          const a = Array.isArray(left) ? left.map(v => String(v).trim()).filter(Boolean) : [];
+          const b = Array.isArray(right) ? right.map(v => String(v).trim()).filter(Boolean) : [];
+          if (a.length !== b.length) return false;
+          for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+          }
+          return true;
+        },
+
+        isAutoGitPushConfig(push) {
+          if (!push || typeof push !== 'object') return false;
+          const id = String(push.id || '').trim();
+          const name = String(push.name || '').trim();
+          return id === this.AUTO_GIT_PUSH_CONFIG_ID || name === this.AUTO_GIT_PUSH_DEFAULT_NAME;
+        },
+
+        findAutoGitPushConfigIndex(list = null) {
+          const arr = Array.isArray(list) ? list : (this.gitPushConfigs || []);
+          return arr.findIndex(item => this.isAutoGitPushConfig(item));
+        },
+
+        getAutoGitPushConfig(list = null) {
+          const arr = Array.isArray(list) ? list : (this.gitPushConfigs || []);
+          const idx = this.findAutoGitPushConfigIndex(arr);
+          return idx >= 0 ? arr[idx] : null;
+        },
+
         getGitPushRepos(push) {
           if (Array.isArray(push?.repos) && push.repos.length > 0) return push.repos;
           if (push?.provider && push?.owner && push?.repo) {
@@ -5135,8 +5186,8 @@
           const target = this.gitPushConfigs[index];
           if (!target) return;
 
-          if (String(target.name || '').trim() === 'AA狐狸插件更新检测') {
-            showToast('默认推送列表不可删除', 'info');
+          if (this.isAutoGitPushConfig(target)) {
+            showToast('自动推送列表不可删除', 'info');
             return;
           }
 
@@ -5449,7 +5500,18 @@
           const canEnableGit = this.pluginSourceEditUseGit
             && !!this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
 
-          return canSwitchSource || storeCheckChanged || canEnableGit;
+          const autoPush = this.getAutoGitPushConfig();
+          const currentPushName = String(autoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
+          const nextPushName = String(this.pluginSourceEditPushName || '').trim() || this.AUTO_GIT_PUSH_DEFAULT_NAME;
+          const currentGroups = Array.isArray(autoPush?.notifyGroups) ? autoPush.notifyGroups : [];
+          const currentUsers = Array.isArray(autoPush?.notifyUsers) ? autoPush.notifyUsers : [];
+          const nextGroups = this.normalizeTargetInputToArray(this.pluginSourceEditPushNotifyGroupsStr);
+          const nextUsers = this.normalizeTargetInputToArray(this.pluginSourceEditPushNotifyUsersStr);
+          const pushInfoChanged = nextPushName !== currentPushName
+            || !this.isSameStringArray(nextGroups, currentGroups)
+            || !this.isSameStringArray(nextUsers, currentUsers);
+
+          return canSwitchSource || storeCheckChanged || canEnableGit || pushInfoChanged;
         },
 
         openPluginSourceEdit(installedPlugin) {
@@ -5462,6 +5524,12 @@
           this.pluginSourceEditUseGit = false;
           this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
           this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
+
+          const autoPush = this.getAutoGitPushConfig();
+          this.pluginSourceEditPushName = String(autoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
+          this.pluginSourceEditPushNotifyGroupsStr = Array.isArray(autoPush?.notifyGroups) ? autoPush.notifyGroups.join(', ') : '';
+          this.pluginSourceEditPushNotifyUsersStr = Array.isArray(autoPush?.notifyUsers) ? autoPush.notifyUsers.join(', ') : '';
+
           this.showPluginSourceEditModal = true;
         },
 
@@ -5473,6 +5541,9 @@
           this.pluginSourceEditUseGit = false;
           this.pluginSourceEditDisableStoreCheck = false;
           this.pluginSourceEditRepoUrl = '';
+          this.pluginSourceEditPushName = '';
+          this.pluginSourceEditPushNotifyGroupsStr = '';
+          this.pluginSourceEditPushNotifyUsersStr = '';
         },
 
         onPluginSourceEditGitToggle() {
@@ -5486,6 +5557,7 @@
 
           let switchedSource = false;
           let createdGitPush = false;
+          let updatedGitPush = false;
           let changedStoreCheck = false;
 
           const currentSource = this.getInstalledPluginCurrentSource(this.pluginSourceEditTarget);
@@ -5514,41 +5586,65 @@
             }
           }
 
-          if (this.pluginSourceEditUseGit) {
-            const parsed = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
-            if (!parsed) {
+          const autoPushName = String(this.pluginSourceEditPushName || '').trim() || this.AUTO_GIT_PUSH_DEFAULT_NAME;
+          const autoPushNotifyGroups = this.normalizeTargetInputToArray(this.pluginSourceEditPushNotifyGroupsStr);
+          const autoPushNotifyUsers = this.normalizeTargetInputToArray(this.pluginSourceEditPushNotifyUsersStr);
+
+          const currentAutoPush = this.getAutoGitPushConfig();
+          const currentAutoPushName = String(currentAutoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
+          const currentAutoPushGroups = Array.isArray(currentAutoPush?.notifyGroups) ? currentAutoPush.notifyGroups : [];
+          const currentAutoPushUsers = Array.isArray(currentAutoPush?.notifyUsers) ? currentAutoPush.notifyUsers : [];
+          const autoPushInfoChanged = autoPushName !== currentAutoPushName
+            || !this.isSameStringArray(autoPushNotifyGroups, currentAutoPushGroups)
+            || !this.isSameStringArray(autoPushNotifyUsers, currentAutoPushUsers);
+
+          if (this.pluginSourceEditUseGit || autoPushInfoChanged) {
+            const parsed = this.pluginSourceEditUseGit ? this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl) : null;
+            if (this.pluginSourceEditUseGit && !parsed) {
               showToast('未识别到有效仓库地址，无法启用 Git 检测更新', 'error');
               return;
             }
 
-            const pushName = 'AA狐狸插件更新检测';
             const next = [...(this.gitPushConfigs || [])];
-            const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+            let autoIndex = this.findAutoGitPushConfigIndex(next);
 
-            const existingIndex = next.findIndex(push => {
-              const sameName = String(push.name || '').trim() === pushName;
-              const hasSameRepo = this.getGitPushRepos(push).some(repo => {
-                const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
-                return pathText === targetPath;
-              });
-              return sameName || hasSameRepo;
+            const buildDefaultAutoPush = () => ({
+              id: this.AUTO_GIT_PUSH_CONFIG_ID,
+              name: autoPushName,
+              enabled: false,
+              notifyGroups: autoPushNotifyGroups,
+              notifyUsers: autoPushNotifyUsers,
+              renderMode: this.gitRenderMode || 'text',
+              repos: []
             });
 
-            const newRepo = {
-              id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-              provider: parsed.provider,
-              repoUrl: parsed.repoUrl,
-              owner: parsed.owner,
-              repo: parsed.repo,
-              commitEnabled: false,
-              commitBranch: '',
-              releaseEnabled: false,
-              releaseBranch: ''
-            };
+            if (autoIndex < 0) {
+              next.push(buildDefaultAutoPush());
+              autoIndex = next.length - 1;
+              createdGitPush = true;
+            }
 
-            if (existingIndex >= 0) {
-              const oldPush = next[existingIndex];
-              const repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+            const oldPush = next[autoIndex] || buildDefaultAutoPush();
+            let repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+
+            if (parsed) {
+              const finalProvider = parsed.isCustomProvider
+                ? this.ensureCustomProviderByHost(parsed.host, 'github')
+                : parsed.provider;
+
+              const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+              const newRepo = {
+                id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+                provider: finalProvider,
+                repoUrl: parsed.repoUrl,
+                owner: parsed.owner,
+                repo: parsed.repo,
+                commitEnabled: false,
+                commitBranch: '',
+                releaseEnabled: false,
+                releaseBranch: ''
+              };
+
               const sameRepoIndex = repos.findIndex(repo => {
                 const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
                 return pathText === targetPath;
@@ -5557,7 +5653,7 @@
               if (sameRepoIndex >= 0) {
                 repos[sameRepoIndex] = {
                   ...repos[sameRepoIndex],
-                  provider: parsed.provider,
+                  provider: finalProvider,
                   repoUrl: parsed.repoUrl,
                   owner: parsed.owner,
                   repo: parsed.repo
@@ -5565,31 +5661,22 @@
               } else {
                 repos.push(newRepo);
               }
-
-              next[existingIndex] = {
-                ...oldPush,
-                name: oldPush.name || pushName,
-                enabled: oldPush.enabled === true,
-                notifyGroups: Array.isArray(oldPush.notifyGroups) ? oldPush.notifyGroups : [],
-                notifyUsers: Array.isArray(oldPush.notifyUsers) ? oldPush.notifyUsers : [],
-                renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
-                repos
-              };
-            } else {
-              next.push({
-                id: `plugin-git-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-                name: pushName,
-                enabled: false,
-                notifyGroups: [],
-                notifyUsers: [],
-                renderMode: this.gitRenderMode || 'text',
-                repos: [newRepo]
-              });
             }
+
+            next[autoIndex] = {
+              ...oldPush,
+              id: this.AUTO_GIT_PUSH_CONFIG_ID,
+              name: autoPushName,
+              enabled: oldPush.enabled === true,
+              notifyGroups: autoPushNotifyGroups,
+              notifyUsers: autoPushNotifyUsers,
+              renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
+              repos
+            };
 
             await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
             this.gitPushConfigs = next;
-            createdGitPush = true;
+            updatedGitPush = true;
           }
 
           const pluginName = this.pluginSourceEditTarget.name;
@@ -5610,7 +5697,7 @@
             changedStoreCheck = true;
           }
 
-          if (!switchedSource && !createdGitPush && !changedStoreCheck) {
+          if (!switchedSource && !createdGitPush && !updatedGitPush && !changedStoreCheck) {
             showToast('没有可保存的修改', 'info');
             return;
           }
@@ -5619,12 +5706,13 @@
             await this.fetchInstalledPlugins();
           }
 
-          if (switchedSource && createdGitPush && changedStoreCheck) showToast('已切换商店源、启用 Git 检测并禁用商店检测', 'success');
-          else if (switchedSource && createdGitPush) showToast('已切换商店源并启用 Git 检测更新', 'success');
-          else if (createdGitPush && changedStoreCheck) showToast('已启用 Git 检测并更新商店检测开关', 'success');
+          if (switchedSource && (createdGitPush || updatedGitPush) && changedStoreCheck) showToast('已切换商店源、启用 Git 检测并禁用商店检测', 'success');
+          else if (switchedSource && (createdGitPush || updatedGitPush)) showToast('已切换商店源并启用 Git 检测更新', 'success');
+          else if ((createdGitPush || updatedGitPush) && changedStoreCheck) showToast('已启用 Git 检测并更新商店检测开关', 'success');
           else if (switchedSource && changedStoreCheck) showToast('商店源与检测开关已更新', 'success');
           else if (switchedSource) showToast('商店源切换成功', 'success');
           else if (createdGitPush) showToast('已在 Git 推送设置新增推送列表（监听提交与发行）', 'success');
+          else if (updatedGitPush) showToast('Git 推送列表信息已更新', 'success');
           else if (changedStoreCheck) showToast('商店源检测开关已更新', 'success');
 
           this.closePluginSourceEdit();
