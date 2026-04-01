@@ -1355,9 +1355,15 @@
                 class="btn btn-secondary text-sm">
                 取消
               </button>
-              <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
-                <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
-              </button>
+              <div class="flex items-center gap-2">
+                <button x-show="shouldShowResetCommunitySourceButton()" x-cloak @click="resetCommunitySourceUrlInEditor()"
+                  class="btn btn-secondary text-sm">
+                  重置源地址
+                </button>
+                <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
+                  <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3055,6 +3061,7 @@
 
     const PLUGIN_NAME = resolvePluginName();
     const API_BASE = `/api/Plugin/ext/${PLUGIN_NAME}`;
+    const COMMUNITY_PLUGIN_SOURCE_DEFAULT_URL = 'https://raw.githubusercontent.com/HolyFoxTeam/napcat-plugin-community-index/refs/heads/main/plugins.v4.json';
 
     function createDefaultConfig() {
       return {
@@ -4032,6 +4039,29 @@
           this.savePluginSources();
           this.fetchMarketPlugins();
           showToast(enabled ? '已启用' : '已禁用', 'success');
+        },
+
+        shouldShowResetCommunitySourceButton() {
+          if (this.editingSourceIndex === null) return false;
+          const source = this.pluginSources[this.editingSourceIndex];
+          if (!source) return false;
+
+          const isCommunityBuiltIn =
+            source.isBuiltIn === true &&
+            String(source.name || '').trim() === '社区插件库';
+
+          if (!isCommunityBuiltIn) return false;
+
+          const currentUrl = String(this.newSource.url || '').trim();
+          return currentUrl !== COMMUNITY_PLUGIN_SOURCE_DEFAULT_URL;
+        },
+
+        resetCommunitySourceUrlInEditor() {
+          this.newSource = {
+            ...this.newSource,
+            url: COMMUNITY_PLUGIN_SOURCE_DEFAULT_URL
+          };
+          showToast('已重置为默认社区插件库地址', 'success');
         },
 
         // 保存源配置
