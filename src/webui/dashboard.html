@@ -651,6 +651,10 @@
       border-bottom: 0;
     }
 
+    .main-scroll-container {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
     @media (max-width: 640px) {
       .toast-container {
         top: 12px;
@@ -687,6 +691,10 @@
         width: 52px;
         height: 52px;
         font-size: 24px;
+      }
+
+      .main-scroll-container {
+        padding-bottom: calc(130px + env(safe-area-inset-bottom)) !important;
       }
     }
   </style>
@@ -831,7 +839,7 @@
       </div>
     </header>
 
-    <div class="flex-1 overflow-auto p-4 lg:p-8 relative" x-ref="mainScrollContainer">
+    <div class="main-scroll-container flex-1 overflow-auto p-4 lg:p-8 relative" x-ref="mainScrollContainer">
       <!-- 彩蛋二级隐藏界面 -->
       <div x-show="showSecretPanel" x-cloak x-transition:enter="secret-panel-enter"
         x-transition:enter-start="secret-panel-enter" x-transition:enter-end="secret-panel-enter-active"
@@ -1245,7 +1253,7 @@
 
         <!-- 插件列表 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-0">
-          <template x-for="(plugin, index) in filteredMarketPlugins"
+          <template x-for="(plugin, index) in paginatedMarketPlugins"
             :key="(plugin.id || plugin.name) + '-' + plugin.source">
             <div
               class="card hover:shadow-md transition-shadow animate-fade-in flex flex-col h-full cursor-pointer hover:-translate-y-1"
@@ -1329,6 +1337,42 @@
             </div>
             <p class="text-sm" style="color: var(--text-secondary)">没有找到插件</p>
             <p class="text-xs mt-2" style="color: var(--text-secondary)">尝试调整搜索关键词或分类</p>
+          </div>
+        </div>
+
+        <!-- 分页 -->
+        <div x-show="filteredMarketPlugins.length > 0" class="card p-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="text-sm text-center sm:text-left" style="color: var(--text-secondary)">
+              第 <span x-text="marketCurrentPage"></span> / <span x-text="marketTotalPages"></span> 页，
+              共 <span x-text="filteredMarketPlugins.length"></span> 个插件
+            </div>
+            <div class="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
+              <button class="btn btn-secondary text-sm px-3 py-1.5 shrink-0"
+                :disabled="marketCurrentPage <= 1"
+                @click="marketPage = Math.max(1, marketCurrentPage - 1)">
+                上一页
+              </button>
+
+              <template x-for="item in marketPaginationItems" :key="'page-item-' + item">
+                <template x-if="typeof item === 'number'">
+                  <button class="btn text-sm px-3 py-1.5 min-w-[36px] shrink-0"
+                    :class="item === marketCurrentPage ? 'btn-primary' : 'btn-secondary'"
+                    @click="marketPage = item"
+                    x-text="item">
+                  </button>
+                </template>
+                <template x-if="typeof item !== 'number'">
+                  <span class="px-1 text-sm select-none shrink-0" style="color: var(--text-secondary)">...</span>
+                </template>
+              </template>
+
+              <button class="btn btn-secondary text-sm px-3 py-1.5 shrink-0"
+                :disabled="marketCurrentPage >= marketTotalPages"
+                @click="marketPage = Math.min(marketTotalPages, marketCurrentPage + 1)">
+                下一页
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3188,6 +3232,8 @@
         sourcesExpanded: false,
         sortDropdownOpen: false,
         editingSourceIndex: null,
+        marketPage: 1,
+        marketPageSize: 20,
         installingPlugins: {}, // 记录正在安装的插件状态
         marketIconLoadFailedMap: {}, // 商店图标加载失败记录（用于回退 emoji）
         marketIconLoadedMap: {}, // 商店图标已成功加载记录（用于先 emoji 后替换图片）
@@ -3450,6 +3496,49 @@
           }
 
           return plugins;
+        },
+
+        get marketTotalPages() {
+          const total = this.filteredMarketPlugins.length;
+          return Math.max(1, Math.ceil(total / this.marketPageSize));
+        },
+
+        get marketCurrentPage() {
+          return Math.min(Math.max(this.marketPage, 1), this.marketTotalPages);
+        },
+
+        get paginatedMarketPlugins() {
+          const start = (this.marketCurrentPage - 1) * this.marketPageSize;
+          return this.filteredMarketPlugins.slice(start, start + this.marketPageSize);
+        },
+
+        get marketPaginationItems() {
+          const total = this.marketTotalPages;
+          const current = this.marketCurrentPage;
+
+          if (total <= 10) {
+            return Array.from({ length: total }, (_, i) => i + 1);
+          }
+
+          const pages = new Set([
+            1, 2, 3,
+            total - 2, total - 1, total,
+            current - 1, current, current + 1
+          ].filter(p => p >= 1 && p <= total));
+
+          const sorted = Array.from(pages).sort((a, b) => a - b);
+          const items = [];
+          let prev = 0;
+
+          for (const page of sorted) {
+            if (prev && page - prev > 1) {
+              items.push(`ellipsis-${prev}-${page}`);
+            }
+            items.push(page);
+            prev = page;
+          }
+
+          return items;
         },
 
         // 获取插件下载量
