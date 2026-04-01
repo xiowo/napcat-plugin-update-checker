@@ -1044,16 +1044,16 @@ export async function ensureGitDefaultBranches(): Promise<void> {
     return;
 }
 
-export async function runGitPushCheck(): Promise<number> {
+export async function runGitPushCheck(): Promise<{ skipped: boolean; updates: number }> {
     if (gitPushCheckRunning) {
         pluginState.logger.warn('Git 推送检查仍在进行中，本次检查已跳过以避免并发重入');
-        return 0;
+        return { skipped: true, updates: 0 };
     }
 
     gitPushCheckRunning = true;
     try {
         const configs = (pluginState.config.gitPushConfigs || []).filter(item => item.enabled !== false);
-        if (configs.length === 0) return 0;
+        if (configs.length === 0) return { skipped: false, updates: 0 };
 
         const cache = loadCache();
 
@@ -1104,7 +1104,7 @@ export async function runGitPushCheck(): Promise<number> {
         }
 
         saveCache(cache);
-        return totalUpdates;
+        return { skipped: false, updates: totalUpdates };
     } finally {
         gitPushCheckRunning = false;
     }
