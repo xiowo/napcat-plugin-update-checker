@@ -4350,6 +4350,16 @@
           this.startInstallPlugin(plugin);
         },
 
+        canUseDownloadMirrorForUrl(downloadUrl) {
+          if (!downloadUrl) return false;
+          try {
+            const u = new URL(String(downloadUrl).trim());
+            return u.hostname === 'github.com' || u.hostname === 'www.github.com';
+          } catch {
+            return false;
+          }
+        },
+
         // 实际安装流程
         async startInstallPlugin(plugin) {
           console.log('安装插件:', plugin);
@@ -4357,6 +4367,18 @@
           const displayName = plugin.displayName || plugin.name;
           if (!plugin.downloadUrl) {
             showToast(`插件 ${displayName} 没有下载地址`, 'error');
+            return;
+          }
+
+          const canUseMirror = this.canUseDownloadMirrorForUrl(plugin.downloadUrl);
+
+          // 非 GitHub 下载链接时，直接安装，不弹出镜像选择框
+          if (!canUseMirror) {
+            this.showMirrorSelectorModal = false;
+            this.pendingInstallPlugin = null;
+            this.installSelectedMirror = '';
+            this.installPingResults = [];
+            this.installPluginWithMirror(plugin, '');
             return;
           }
 

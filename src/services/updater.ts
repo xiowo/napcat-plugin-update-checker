@@ -166,6 +166,35 @@ function resolveRelativeUrl(url: string, base: string): string {
     }
 }
 
+function canUseRawMirrorForUrl(targetUrl: string): boolean {
+    try {
+        const u = new URL(targetUrl);
+        return u.hostname === 'raw.githubusercontent.com';
+    } catch {
+        return false;
+    }
+}
+
+function canUseDownloadMirrorForUrl(targetUrl: string): boolean {
+    try {
+        const u = new URL(targetUrl);
+        return u.hostname === 'github.com' || u.hostname === 'www.github.com';
+    } catch {
+        return false;
+    }
+}
+
+function buildMirroredUrl(targetUrl: string, mirror: string | undefined, mode: 'raw' | 'download'): string {
+    const isDirect = !mirror || mirror === 'direct' || mirror === 'https://raw.githubusercontent.com';
+    if (isDirect) return targetUrl;
+
+    const canUseMirror = mode === 'raw'
+        ? canUseRawMirrorForUrl(targetUrl)
+        : canUseDownloadMirrorForUrl(targetUrl);
+
+    return canUseMirror ? `${mirror}${targetUrl}` : targetUrl;
+}
+
 async function fetchJsonByMirrors(
     sourceUrl: string,
     mirrors: string[],
@@ -175,10 +204,13 @@ async function fetchJsonByMirrors(
         ? [preferredMirror, ...mirrors.filter(m => m !== preferredMirror)]
         : mirrors;
 
+    const attemptedBaseUrls = new Set<string>();
+
     for (const mirror of orderedMirrors) {
         try {
-            const isDirect = !mirror || mirror === 'direct' || mirror === 'https://raw.githubusercontent.com';
-            const baseUrl = isDirect ? sourceUrl : `${mirror}${sourceUrl}`;
+            const baseUrl = buildMirroredUrl(sourceUrl, mirror, 'raw');
+            if (attemptedBaseUrls.has(baseUrl)) continue;
+            attemptedBaseUrls.add(baseUrl);
             const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
             const res = await fetch(url, {
@@ -232,10 +264,13 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
         let sourceBest = new Map<string, StorePlugin>();
         let sourceBestLabel = '';
 
+        const attemptedBaseUrls = new Set<string>();
+
         for (const mirror of mirrors) {
             try {
-                const isDirect = !mirror || mirror === 'direct' || mirror === 'https://raw.githubusercontent.com';
-                const baseUrl = isDirect ? source : `${mirror}${source}`;
+                const baseUrl = buildMirroredUrl(source, mirror, 'raw');
+                if (attemptedBaseUrls.has(baseUrl)) continue;
+                attemptedBaseUrls.add(baseUrl);
                 const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
                 const res = await fetch(url, {
@@ -288,14 +323,14 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
                     continue;
                 }
 
-                const label = isDirect ? '直连' : '镜像';
+                const label = baseUrl === source ? '直连' : '镜像';
                 if (map.size > sourceBest.size) {
                     sourceBest = map;
                     sourceBestLabel = label;
                 }
 
                 // 指定镜像/直连成功后优先采用，减少等待
-                if (isDirect || mirror === selected) {
+                if (baseUrl === source || mirror === selected) {
                     break;
                 }
             } catch (e) {
@@ -515,9 +550,14 @@ async function downloadWithMirror(url: string, destPath: string): Promise<void> 
         ? [selected, ...mirrorsWithDirect.filter(m => m !== selected)]
         : mirrorsWithDirect;
 
+    const attemptedUrls = new Set<string>();
+
     for (const mirror of mirrors) {
         try {
-            const finalUrl = (mirror && mirror !== 'direct') ? `${mirror}${url}` : url;
+            const finalUrl = buildMirroredUrl(url, mirror, 'download');
+            if (attemptedUrls.has(finalUrl)) continue;
+            attemptedUrls.add(finalUrl);
+
             const res = await fetch(finalUrl, {
                 headers: { 'User-Agent': 'napcat-plugin-update-checker' },
                 signal: AbortSignal.timeout(120000),
