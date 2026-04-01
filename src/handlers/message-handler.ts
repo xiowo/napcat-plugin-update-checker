@@ -3,7 +3,6 @@
  *
  * 处理接收到的 QQ 消息事件，包含：
  * - 命令解析与分发
- * - CD 冷却管理
  * - 消息发送工具函数
  *
  * 最佳实践：将不同类型的业务逻辑拆分到不同的 handler 文件中，
@@ -29,53 +28,8 @@ import {
     markStoreUpdateInstalled,
 } from '../services/update-registry';
 
-// ==================== CD 冷却管理 ====================
-
-/** CD 冷却记录 key: `${groupId}:${command}`, value: 过期时间戳 */
-const cooldownMap = new Map<string, number>();
-
 function isGroupMessage(event: OB11Message): event is OB11Message & { message_type: 'group'; group_id: number | string } {
     return event.message_type === 'group' && !!event.group_id;
-}
-
-/**
- * 检查是否在 CD 中
- * @returns 剩余秒数，0 表示可用
- */
-function getCooldownRemaining(groupId: number | string, command: string): number {
-    const cdSeconds = pluginState.config.cooldownSeconds ?? 60;
-    if (cdSeconds <= 0) return 0;
-
-    const key = `${groupId}:${command}`;
-    const expireTime = cooldownMap.get(key);
-    if (!expireTime) return 0;
-
-    const remaining = Math.ceil((expireTime - Date.now()) / 1000);
-    if (remaining <= 0) {
-        cooldownMap.delete(key);
-        return 0;
-    }
-    return remaining;
-}
-
-/** 设置 CD 冷却 */
-function setCooldown(groupId: number | string, command: string): void {
-    const cdSeconds = pluginState.config.cooldownSeconds ?? 60;
-    if (cdSeconds <= 0) return;
-    cooldownMap.set(`${groupId}:${command}`, Date.now() + cdSeconds * 1000);
-}
-
-/** 群聊命令 CD 检查，返回 true 表示被拦截 */
-async function guardGroupCooldown(
-    ctx: NapCatPluginContext,
-    event: OB11Message,
-    command: string
-): Promise<boolean> {
-    if (!isGroupMessage(event)) return false;
-    const remaining = getCooldownRemaining(event.group_id, command);
-    if (remaining <= 0) return false;
-    await sendReply(ctx, event, `请等待 ${remaining} 秒后再试`);
-    return true;
 }
 
 // ==================== 消息发送工具 ====================
@@ -300,12 +254,10 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
         const updateIndex = parseUpdateIndex();
         if (updateIndex !== null) {
             if (await denyIfNoPermission(ctx, event)) return;
-            if (await guardGroupCooldown(ctx, event, `编号${updateIndex}`)) return;
 
             const target = getStoreUpdateByIndex(updateIndex);
             if (!target) {
                 await sendReply(ctx, event, `❌ 未找到编号 ${updateIndex} 的可更新插件`);
-                if (isGroupMessage(event)) setCooldown(event.group_id, `编号${updateIndex}`);
                 return;
             }
 
@@ -324,7 +276,6 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                 await sendReply(ctx, event, `❌ 更新失败：${target.displayName}`);
             }
 
-            if (isGroupMessage(event)) setCooldown(event.group_id, `编号${updateIndex}`);
             return;
         }
 
@@ -362,7 +313,6 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
             case '检查': {
                 if (await denyIfNoPermission(ctx, event)) return;
-                if (await guardGroupCooldown(ctx, event, '检查')) return;
 
                 await sendReply(ctx, event, '🔍 正在检查插件更新，请稍候...');
 
@@ -413,13 +363,11 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     await sendReply(ctx, event, '❌ 检查更新失败，请查看日志获取详细信息');
                 }
 
-                if (isGroupMessage(event)) setCooldown(event.group_id, '检查');
                 break;
             }
 
             case '仓库检查': {
                 if (await denyIfNoPermission(ctx, event)) return;
-                if (await guardGroupCooldown(ctx, event, '仓库检查')) return;
 
                 await sendReply(ctx, event, '🔍 正在立即检查所有仓库更新，并按配置推送，请稍候...');
 
@@ -431,13 +379,11 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     await sendReply(ctx, event, '❌ 仓库更新检查失败，请查看日志获取详细信息');
                 }
 
-                if (isGroupMessage(event)) setCooldown(event.group_id, '仓库检查');
                 break;
             }
 
             case '全部': {
                 if (await denyIfNoPermission(ctx, event)) return;
-                if (await guardGroupCooldown(ctx, event, '全部')) return;
 
                 await sendReply(ctx, event, '🔄 正在读取可更新插件，请稍候...');
 
@@ -462,7 +408,6 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     await sendReply(ctx, event, '❌ 更新插件失败，请查看日志获取详细信息');
                 }
 
-                if (isGroupMessage(event)) setCooldown(event.group_id, '全部');
                 break;
             }
 

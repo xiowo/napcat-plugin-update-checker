@@ -2319,12 +2319,6 @@
                 @change="markNonSwitchChanged()" placeholder="触发命令的前缀，默认为 #更新插件" class="input flex-1">
             </div>
             <div class="flex flex-col gap-2">
-              <label class="text-sm font-medium" style="color: var(--text-secondary)">冷却时间（秒）</label>
-              <input type="number" x-model.number="config.cooldownSeconds" @input="markNonSwitchChanged()"
-                @change="markNonSwitchChanged()" placeholder="同一命令请求冷却时间，0 表示不限制" class="input flex-1">
-            </div>
-
-            <div class="flex flex-col gap-2">
               <!-- 主人QQ输入框 -->
               <label class="text-sm font-medium" style="color: var(--text-secondary)">
                 主人QQ (填QQ号，多个用英文逗号分隔)
@@ -3052,7 +3046,6 @@
       return {
         enabled: true,
         commandPrefix: '#更新插件',
-        cooldownSeconds: 60,
         masterQQ: '',
         silentNoPermission: false,
         groupConfigs: {},
@@ -3829,7 +3822,6 @@
             await this.api('/mirrors', 'POST', {
               enabled: this.config.enabled,
               commandPrefix: this.config.commandPrefix,
-              cooldownSeconds: this.config.cooldownSeconds,
               masterQQ: this.config.masterQQ,
               silentNoPermission: this.config.silentNoPermission,
               updateMode: this.config.updateMode,
@@ -4654,7 +4646,6 @@
             const localDraft = keepLocalDraft
               ? {
                 commandPrefix: this.config.commandPrefix,
-                cooldownSeconds: this.config.cooldownSeconds,
                 updateMode: this.config.updateMode,
                 checkInterval: this.config.checkInterval,
                 notifyGroupsStr: this.config.notifyGroupsStr,
@@ -5208,7 +5199,7 @@
           if (!this.originalConfig) return false;
           // 只检查非开关类的配置项
           const keysToCheck = [
-            'commandPrefix', 'cooldownSeconds', 'updateMode', 'checkInterval',
+            'commandPrefix', 'updateMode', 'checkInterval',
             'notifyGroupsStr', 'notifyUsersStr', 'masterQQ'
           ];
           for (const key of keysToCheck) {

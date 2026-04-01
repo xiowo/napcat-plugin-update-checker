@@ -10,7 +10,6 @@ import type { PluginConfig } from './types';
 export const DEFAULT_CONFIG: PluginConfig = {
     enabled: true,
     commandPrefix: '#更新插件',
-    cooldownSeconds: 60,
     masterQQ: '',
     silentNoPermission: false,
     groupConfigs: {},

@@ -17,8 +17,6 @@ export interface PluginConfig {
     enabled: boolean;
     /** 触发命令前缀 */
     commandPrefix: string;
-    /** 同一命令请求冷却时间（秒），0 表示不限制 */
-    cooldownSeconds: number;
     /** 主人 QQ（多个使用英文逗号分隔），设置后仅主人可执行管理命令 */
     masterQQ: string;
     /** 无权限时静默（不回复权限提示） */

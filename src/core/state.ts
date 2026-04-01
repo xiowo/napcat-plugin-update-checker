@@ -33,7 +33,6 @@ function sanitizeConfig(raw: unknown): PluginConfig {
 
     if (typeof raw.enabled === 'boolean') out.enabled = raw.enabled;
     if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
-    if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
     if (typeof raw.masterQQ === 'string') out.masterQQ = raw.masterQQ.trim();
     if (typeof raw.silentNoPermission === 'boolean') out.silentNoPermission = raw.silentNoPermission;
 
