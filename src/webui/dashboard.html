@@ -5497,8 +5497,10 @@
           const currentDisableStoreCheck = this.config.ignoredPlugins.includes(pluginName);
           const storeCheckChanged = this.pluginSourceEditDisableStoreCheck !== currentDisableStoreCheck;
 
-          const canEnableGit = this.pluginSourceEditUseGit
-            && !!this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
+          const currentGitEnabled = this.hasGitPushRepoForPlugin(this.pluginSourceEditTarget);
+          const parsedRepo = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
+          const canEnableGit = !currentGitEnabled && this.pluginSourceEditUseGit && !!parsedRepo;
+          const canDisableGit = currentGitEnabled && !this.pluginSourceEditUseGit;
 
           const autoPush = this.getAutoGitPushConfig();
           const currentPushName = String(autoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
@@ -5511,7 +5513,7 @@
             || !this.isSameStringArray(nextGroups, currentGroups)
             || !this.isSameStringArray(nextUsers, currentUsers);
 
-          return canSwitchSource || storeCheckChanged || canEnableGit || pushInfoChanged;
+          return canSwitchSource || storeCheckChanged || canEnableGit || canDisableGit || pushInfoChanged;
         },
 
         openPluginSourceEdit(installedPlugin) {
@@ -5521,7 +5523,7 @@
           if (this.pluginSourceEditOptions.length > 0 && !this.pluginSourceEditOptions.find(v => v.source === this.pluginSourceEditValue)) {
             this.pluginSourceEditValue = this.pluginSourceEditOptions[0].source;
           }
-          this.pluginSourceEditUseGit = false;
+          this.pluginSourceEditUseGit = this.hasGitPushRepoForPlugin(installedPlugin);
           this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
           this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
 
