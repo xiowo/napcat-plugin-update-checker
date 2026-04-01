@@ -372,8 +372,12 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                 await sendReply(ctx, event, '🔍 正在立即检查所有仓库更新，并按配置推送，请稍候...');
 
                 try {
-                    await runGitPushCheck();
-                    await sendReply(ctx, event, '✅ 已完成仓库检查，更新会按推送配置发送到对应群/用户');
+                    const updates = await runGitPushCheck();
+                    if (updates === 0) {
+                        await sendReply(ctx, event, '✅ 所有仓库都是最新的');
+                    } else {
+                        await sendReply(ctx, event, `✅ 已完成仓库检查，检测到 ${updates} 条更新并按推送配置发送到对应群/用户`);
+                    }
                 } catch (error) {
                     pluginState.logger.error('仓库更新检查失败:', error);
                     await sendReply(ctx, event, '❌ 仓库更新检查失败，请查看日志获取详细信息');
