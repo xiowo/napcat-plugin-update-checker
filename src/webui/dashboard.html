@@ -702,9 +702,6 @@
         padding-bottom: calc(130px + env(safe-area-inset-bottom)) !important;
       }
 
-      .modal-panel .flex.flex-col-reverse.sm\:flex-row {
-        align-items: flex-end;
-      }
     }
   </style>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -722,11 +719,11 @@
       x-transition:leave="secret-panel-leave" x-transition:leave-start="secret-panel-leave"
       x-transition:leave-end="secret-panel-leave-active" class="card max-w-md w-full mx-4 secret-panel">
       <div class="px-5 py-4 border-b border-[var(--border)]">
-        <h3 class="font-bold text-lg" style="color: var(--text)" x-text="confirmDialogTitle || '确认操作'"></h3>
+        <h3 class="font-bold text-lg" style="color: var(--text)" x-text="confirmDialogTitle"></h3>
       </div>
       <div class="p-5">
         <div class="flex items-start gap-3 mb-4">
-          <span class="text-4xl star-pulse" x-text="confirmDialogIcon || '⭐'"></span>
+          <span x-show="confirmDialogIcon" class="text-4xl star-pulse" x-text="confirmDialogIcon"></span>
           <div class="flex-1">
             <p class="text-base leading-relaxed" style="color: var(--text);" x-text="confirmDialogMessage">
             </p>
@@ -1434,21 +1431,20 @@
             </div>
           </div>
 
-          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+          <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
             <button
               @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' }"
-              class="btn btn-secondary text-sm">
+              class="btn btn-secondary text-sm w-full sm:w-auto">
               取消
             </button>
-            <div class="flex items-center justify-end gap-2">
-              <button x-show="shouldShowResetCommunitySourceButton()" x-cloak @click="resetCommunitySourceUrlInEditor()"
-                class="btn btn-secondary text-sm">
-                重置源地址
-              </button>
-              <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
-                <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
-              </button>
-            </div>
+            <button x-show="shouldShowResetCommunitySourceButton()" x-cloak @click="resetCommunitySourceUrlInEditor()"
+              class="btn btn-secondary text-sm w-full sm:w-auto">
+              重置源地址
+            </button>
+            <button @click="editingSourceIndex === null ? addSource() : saveSource()"
+              class="btn btn-primary text-sm w-full sm:w-auto">
+              <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
+            </button>
           </div>
         </div>
       </div>
@@ -2040,7 +2036,7 @@
               </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
               <button @click="showGitProviderModal = false" class="btn btn-secondary text-sm">取消</button>
               <button @click="saveGitProviders" class="btn btn-primary text-sm">保存</button>
             </div>
@@ -2278,7 +2274,7 @@
               </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
               <button @click="closeGitPushModal" class="btn btn-secondary text-sm">取消</button>
               <button @click="saveGitPush" class="btn btn-primary text-sm">保存</button>
             </div>
@@ -2386,7 +2382,7 @@
               </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
               <button @click="closeGitRepoModal" class="btn btn-secondary text-sm">取消</button>
               <button @click="saveGitRepoItem" class="btn btn-primary text-sm">保存仓库</button>
             </div>
@@ -3007,7 +3003,7 @@
             </div>
           </div>
 
-          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+          <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
             <button @click="closePluginSourceEdit()" class="btn btn-secondary text-sm">取消</button>
             <button @click="savePluginSourceEdit()" class="btn btn-primary text-sm"
               :disabled="!canSavePluginSourceEdit()">保存</button>
@@ -3100,7 +3096,7 @@
             </div>
           </div>
 
-          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+          <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
             <button @click="showPluginUpdateSettingsModal = false" class="btn btn-secondary text-sm">取消</button>
             <button @click="saveConfig(); showPluginUpdateSettingsModal = false" class="btn btn-primary text-sm">保存</button>
           </div>
@@ -3237,13 +3233,14 @@
           customForwardName: '',
         },
         showConfirmDialog: false,
-        confirmDialogTitle: '确认操作',
-        confirmDialogIcon: '⭐',
+        confirmDialogTitle: '',
+        confirmDialogIcon: '',
         confirmDialogMessage: '',
         confirmDialogCancelText: '取消',
         confirmDialogOkText: '确认',
         confirmCallback: null,
         confirmCancelCallback: null,
+        confirmDialogResetTimer: null,
         // 更新模式下拉菜单状态
         updateModeDropdownOpen: false,
         gitRenderModeDropdownOpen: false,
@@ -4798,6 +4795,7 @@
         },
 
         async saveSecretConfig() {
+          this.resetConfirmDialogState();
           this.confirmDialogTitle = '✨ 确认一下';
           this.confirmDialogIcon = '⭐';
           this.confirmDialogMessage = '确认给项目仓库点小星星了吗？没点星星的都是大坏蛋！';
@@ -4820,30 +4818,46 @@
           this.showConfirmDialog = true;
         },
 
-        handleConfirmOk() {
-          this.showConfirmDialog = false;
-          if (this.confirmCallback) {
-            this.confirmCallback();
+        resetConfirmDialogState() {
+          if (this.confirmDialogResetTimer) {
+            clearTimeout(this.confirmDialogResetTimer);
+            this.confirmDialogResetTimer = null;
           }
           this.confirmCallback = null;
           this.confirmCancelCallback = null;
-          this.confirmDialogTitle = '确认操作';
-          this.confirmDialogIcon = '⭐';
+          this.confirmDialogTitle = '';
+          this.confirmDialogIcon = '';
+          this.confirmDialogMessage = '';
           this.confirmDialogCancelText = '取消';
           this.confirmDialogOkText = '确认';
         },
 
-        handleConfirmCancel() {
+        closeConfirmDialogSafely() {
           this.showConfirmDialog = false;
-          if (this.confirmCancelCallback) {
-            this.confirmCancelCallback();
+          if (this.confirmDialogResetTimer) {
+            clearTimeout(this.confirmDialogResetTimer);
           }
-          this.confirmCallback = null;
-          this.confirmCancelCallback = null;
-          this.confirmDialogTitle = '确认操作';
-          this.confirmDialogIcon = '⭐';
-          this.confirmDialogCancelText = '取消';
-          this.confirmDialogOkText = '确认';
+          this.confirmDialogResetTimer = setTimeout(() => {
+            if (!this.showConfirmDialog) {
+              this.resetConfirmDialogState();
+            }
+          }, 320);
+        },
+
+        handleConfirmOk() {
+          const callback = this.confirmCallback;
+          this.closeConfirmDialogSafely();
+          if (callback) {
+            callback();
+          }
+        },
+
+        handleConfirmCancel() {
+          const cancelCallback = this.confirmCancelCallback;
+          this.closeConfirmDialogSafely();
+          if (cancelCallback) {
+            cancelCallback();
+          }
         },
 
         formatUptime(seconds) {
@@ -5434,6 +5448,7 @@
             return;
           }
 
+          this.resetConfirmDialogState();
           this.confirmDialogTitle = '删除确认';
           this.confirmDialogIcon = '⚠️';
           this.confirmDialogMessage = `确认删除推送列表「${target.name || '未命名列表'}」吗？删除后将无法恢复。`;
