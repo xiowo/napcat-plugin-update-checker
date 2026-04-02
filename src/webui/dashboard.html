@@ -1999,6 +1999,17 @@
                   </label>
                 </div>
 
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="font-medium" style="color: var(--text)">首次添加仓库后立即推送</div>
+                    <div class="text-xs" style="color: var(--text-secondary)">当仓库首次加入推送列表时，自动立即执行一次检测并推送</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" x-model="gitPushOnFirstRepoAdd">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
                 <div>
                   <label class="block text-sm mb-1" style="color: var(--text-secondary)">自动检查定时时间（分钟）</label>
                   <input type="number" min="1" x-model.number="gitCheckInterval" class="input w-full"
@@ -3148,7 +3159,8 @@
         gitAutoFetchDefaultBranch: true,
         gitRenderMode: 'text',
         gitEnableSchedule: true,
-        gitCheckInterval: 30
+        gitCheckInterval: 30,
+        gitPushOnFirstRepoAdd: true
       };
     }
 
@@ -3264,6 +3276,7 @@
         gitRenderMode: 'text',
         gitScheduleEnabled: true,
         gitCheckInterval: 30,
+        gitPushOnFirstRepoAdd: true,
         gitDefaultApiBaseMap: {
           GitHub: 'https://api.github.com/repos',
           Gitee: 'https://gitee.com/api/v5/repos',
@@ -4940,6 +4953,7 @@
             this.gitRenderMode = data.gitRenderMode || 'text';
             this.gitScheduleEnabled = data.gitEnableSchedule !== false;
             this.gitCheckInterval = Number(data.gitCheckInterval || 30);
+            this.gitPushOnFirstRepoAdd = data.gitPushOnFirstRepoAdd !== false;
           } catch (e) {
             console.error('fetchGitConfig failed', e);
           }
@@ -5313,7 +5327,8 @@
               gitAutoFetchDefaultBranch: this.gitAutoFetchDefaultBranch,
               gitRenderMode: this.gitRenderMode,
               gitEnableSchedule: this.gitScheduleEnabled,
-              gitCheckInterval: Math.max(Number(this.gitCheckInterval) || 1, 1)
+              gitCheckInterval: Math.max(Number(this.gitCheckInterval) || 1, 1),
+              gitPushOnFirstRepoAdd: this.gitPushOnFirstRepoAdd
             });
             this.gitCheckInterval = Math.max(Number(this.gitCheckInterval) || 1, 1);
             this.showGitApiConfigModal = false;

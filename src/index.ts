@@ -270,6 +270,69 @@ function extractRepositoryUrl(plugin: any): string {
     }
 }
 
+function normalizePushRepos(config: GitPushConfig): Array<{ id: string; provider: string; owner: string; repo: string }> {
+    if (Array.isArray(config?.repos) && config.repos.length > 0) {
+        return config.repos
+            .filter(item => item && item.provider && item.owner && item.repo)
+            .map(item => ({
+                id: String(item.id || `${item.provider}-${item.owner}-${item.repo}`),
+                provider: String(item.provider || ''),
+                owner: String(item.owner || ''),
+                repo: String(item.repo || ''),
+            }));
+    }
+
+    if (config?.provider && config?.owner && config?.repo) {
+        return [{
+            id: String(config.id || `${config.provider}-${config.owner}-${config.repo}`),
+            provider: String(config.provider || ''),
+            owner: String(config.owner || ''),
+            repo: String(config.repo || ''),
+        }];
+    }
+
+    return [];
+}
+
+function buildRepoIdentity(repo: { provider: string; owner: string; repo: string }): string {
+    return [
+        String(repo.provider || '').trim().toLowerCase(),
+        String(repo.owner || '').trim().toLowerCase(),
+        String(repo.repo || '').trim().toLowerCase(),
+    ].join('|');
+}
+
+function collectAddedRepoConfigIds(
+    previousConfigs: GitPushConfig[],
+    nextConfigs: GitPushConfig[]
+): string[] {
+    const previousByConfigId = new Map<string, Set<string>>();
+
+    for (const config of previousConfigs) {
+        const configId = String(config?.id || '').trim();
+        if (!configId) continue;
+        const repoSet = new Set(normalizePushRepos(config).map(buildRepoIdentity));
+        previousByConfigId.set(configId, repoSet);
+    }
+
+    const hit = new Set<string>();
+    for (const config of nextConfigs) {
+        const configId = String(config?.id || '').trim();
+        if (!configId) continue;
+        if (config.enabled === false) continue;
+
+        const previousRepoSet = previousByConfigId.get(configId) || new Set<string>();
+        const currentRepos = normalizePushRepos(config);
+        const hasNewRepo = currentRepos.some(repo => !previousRepoSet.has(buildRepoIdentity(repo)));
+
+        if (hasNewRepo) {
+            hit.add(configId);
+        }
+    }
+
+    return Array.from(hit);
+}
+
 /**
  * 注册 WebUI 路由
  */
@@ -899,6 +962,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                     gitRenderMode: config.gitRenderMode || 'text',
                     gitEnableSchedule: config.gitEnableSchedule !== false,
                     gitCheckInterval: config.gitCheckInterval || DEFAULT_CONFIG.gitCheckInterval,
+                    gitPushOnFirstRepoAdd: config.gitPushOnFirstRepoAdd !== false,
                 }
             });
         } catch (e) {
@@ -926,6 +990,9 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             if (body?.gitCheckInterval !== undefined) {
                 pluginState.config.gitCheckInterval = Number(body.gitCheckInterval) || DEFAULT_CONFIG.gitCheckInterval;
             }
+            if (body?.gitPushOnFirstRepoAdd !== undefined) {
+                pluginState.config.gitPushOnFirstRepoAdd = Boolean(body.gitPushOnFirstRepoAdd);
+            }
 
             pluginState.saveConfig();
 
@@ -950,9 +1017,35 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             if (!Array.isArray(body?.gitPushConfigs)) {
                 return res.json({ code: -1, message: 'gitPushConfigs 必须是数组' });
             }
-            pluginState.config.gitPushConfigs = body.gitPushConfigs;
+
+            const previousConfigs = Array.isArray(pluginState.config.gitPushConfigs)
+                ? pluginState.config.gitPushConfigs as GitPushConfig[]
+                : [];
+            const nextConfigs = body.gitPushConfigs as GitPushConfig[];
+
+            pluginState.config.gitPushConfigs = nextConfigs;
             pluginState.saveConfig();
-            res.json({ code: 0, message: 'success' });
+
+            let autoTriggeredCount = 0;
+            if (pluginState.config.gitPushOnFirstRepoAdd !== false) {
+                const configIds = collectAddedRepoConfigIds(previousConfigs, nextConfigs);
+                for (const configId of configIds) {
+                    try {
+                        await runGitPushDebugForConfig(configId);
+                        autoTriggeredCount++;
+                    } catch (e) {
+                        ctx.logger.warn(`首次添加仓库后自动推送失败，configId=${configId}:`, e);
+                    }
+                }
+            }
+
+            res.json({
+                code: 0,
+                message: 'success',
+                data: {
+                    autoTriggeredCount
+                }
+            });
         } catch (e) {
             res.json({ code: -1, message: String(e) });
         }

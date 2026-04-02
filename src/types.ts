@@ -61,6 +61,8 @@ export interface PluginConfig {
     gitEnableSchedule?: boolean;
     /** Git 推送自动检查间隔（分钟，独立于插件商店更新检测） */
     gitCheckInterval?: number;
+    /** 首次将仓库加入推送列表时是否立即触发一次推送 */
+    gitPushOnFirstRepoAdd?: boolean;
     /** 彩蛋配置：是否启用自定义合并转发信息 */
     customForwardInfo?: boolean;
     /** 彩蛋配置：自定义合并转发 QQ 号（不填则使用机器人自身） */

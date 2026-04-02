@@ -64,6 +64,7 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     if (raw.gitRenderMode === 'text' || raw.gitRenderMode === 'render') out.gitRenderMode = raw.gitRenderMode;
     if (typeof raw.gitEnableSchedule === 'boolean') out.gitEnableSchedule = raw.gitEnableSchedule;
     if (typeof raw.gitCheckInterval === 'number') out.gitCheckInterval = Math.max(raw.gitCheckInterval, 1);
+    if (typeof raw.gitPushOnFirstRepoAdd === 'boolean') out.gitPushOnFirstRepoAdd = raw.gitPushOnFirstRepoAdd;
     // 彩蛋配置清洗
     if (typeof raw.customForwardInfo === 'boolean') out.customForwardInfo = raw.customForwardInfo;
     if (typeof raw.customForwardQQ === 'string') out.customForwardQQ = raw.customForwardQQ;
