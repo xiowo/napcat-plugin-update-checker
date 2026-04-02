@@ -184,6 +184,24 @@ function isAsciiSafeUrl(value: string): boolean {
     return Boolean(value) && URL_ASCII_SAFE_REGEX.test(value);
 }
 
+function normalizeSourceHeaders(input: unknown): Record<string, string> | undefined {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
+
+    const out: Record<string, string> = {};
+    for (const [rawKey, rawValue] of Object.entries(input)) {
+        const key = String(rawKey || '').trim();
+        if (!key) continue;
+
+        if (rawValue === undefined || rawValue === null) continue;
+        const value = String(rawValue).trim();
+        if (!value) continue;
+
+        out[key] = value;
+    }
+
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** 锁定插件源名称 */
 function normalizePluginSourcesWithLockedName(
     incoming: unknown,
@@ -214,6 +232,8 @@ function normalizePluginSourcesWithLockedName(
             url,
             enabled: Boolean(src.enabled),
             isBuiltIn: old?.isBuiltIn ?? Boolean(src.isBuiltIn),
+            requestHeaders: normalizeSourceHeaders(src.requestHeaders) ?? old?.requestHeaders,
+            downloadHeaders: normalizeSourceHeaders(src.downloadHeaders) ?? old?.downloadHeaders,
         });
     }
 

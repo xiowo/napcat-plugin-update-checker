@@ -1394,8 +1394,26 @@
               <input type="text" x-model="newSource.url" placeholder="例如：https://plugins.example.com/index.json"
                 class="input w-full">
             </div>
+            <div class="space-y-3">
+              <div class="text-xs px-3 py-2 rounded-lg border border-[var(--border)]"
+                style="color: var(--text-secondary); background: var(--border-light);">
+                高级配置（可选）：每行一个请求头，格式为 <code>Header-Name: Header-Value</code>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary)">源地址请求头</label>
+                <textarea x-model="newSource.requestHeadersText"
+                  placeholder="Authorization: Bearer xxx&#10;X-Token: abc123"
+                  class="input w-full" rows="4" style="resize: vertical;"></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary)">下载请求头</label>
+                <textarea x-model="newSource.downloadHeadersText"
+                  placeholder="Authorization: Bearer xxx&#10;Cookie: session=xxx"
+                  class="input w-full" rows="4" style="resize: vertical;"></textarea>
+              </div>
+            </div>
             <div class="flex items-center justify-between pt-4">
-              <button @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '' }"
+              <button @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' }"
                 class="btn btn-secondary text-sm">
                 取消
               </button>
@@ -3216,7 +3234,7 @@
         // 插件市场相关
         pluginSources: [],
         showAddSourceModal: false,
-        newSource: { name: '', url: '' },
+        newSource: { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' },
         marketSearchQuery: '',
         searchMode: 'name',
         searchModeDropdownOpen: false,
@@ -3985,7 +4003,12 @@
 
             for (const source of enabledSources) {
               try {
-                const response = await fetch(source.url);
+                const sourceHeaders = source.requestHeaders && typeof source.requestHeaders === 'object'
+                  ? source.requestHeaders
+                  : {};
+                const response = await fetch(source.url, {
+                  headers: sourceHeaders
+                });
                 if (!response.ok) throw new Error(`Failed to fetch from ${source.name}`);
                 const data = await response.json();
                 const plugins = Array.isArray(data) ? data : data.plugins || [];
@@ -3995,7 +4018,9 @@
                 if (statsUrlRaw) {
                   try {
                     const statsUrl = new URL(statsUrlRaw, source.url).toString();
-                    const statsRes = await fetch(statsUrl);
+                    const statsRes = await fetch(statsUrl, {
+                      headers: sourceHeaders
+                    });
                     if (statsRes.ok) {
                       const statsJson = await statsRes.json();
                       if (statsJson && typeof statsJson === 'object') {
@@ -4041,6 +4066,37 @@
           }
         },
 
+        formatSourceHeadersText(headers) {
+          if (!headers || typeof headers !== 'object') return '';
+          return Object.entries(headers)
+            .map(([key, value]) => `${String(key || '').trim()}: ${String(value || '').trim()}`)
+            .filter(line => !line.startsWith(':'))
+            .join('\n');
+        },
+
+        parseSourceHeadersText(text) {
+          const lines = String(text || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+
+          if (lines.length === 0) return undefined;
+
+          const headers = {};
+          for (const line of lines) {
+            const sepIndex = line.indexOf(':');
+            if (sepIndex <= 0) continue;
+
+            const key = line.slice(0, sepIndex).trim();
+            const value = line.slice(sepIndex + 1).trim();
+
+            if (!key || !value) continue;
+            headers[key] = value;
+          }
+
+          return Object.keys(headers).length > 0 ? headers : undefined;
+        },
+
         // 添加商店源
         addSource() {
           if (!this.newSource.name || !this.newSource.url) {
@@ -4065,12 +4121,14 @@
           this.pluginSources.push({
             name: sourceName,
             url: this.newSource.url,
-            enabled: true
+            enabled: true,
+            requestHeaders: this.parseSourceHeadersText(this.newSource.requestHeadersText),
+            downloadHeaders: this.parseSourceHeadersText(this.newSource.downloadHeadersText)
           });
 
           this.savePluginSources();
           this.showAddSourceModal = false;
-          this.newSource = { name: '', url: '' };
+          this.newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' };
           this.fetchMarketPlugins();
           showToast('添加成功', 'success');
         },
@@ -4078,7 +4136,12 @@
         // 编辑商店源
         editSource(index) {
           const source = this.pluginSources[index];
-          this.newSource = { name: source.name, url: source.url };
+          this.newSource = {
+            name: source.name,
+            url: source.url,
+            requestHeadersText: this.formatSourceHeadersText(source.requestHeaders),
+            downloadHeadersText: this.formatSourceHeadersText(source.downloadHeaders)
+          };
           this.editingSourceIndex = index;
           this.showAddSourceModal = true;
         },
@@ -4102,12 +4165,14 @@
             this.pluginSources[this.editingSourceIndex] = {
               ...this.pluginSources[this.editingSourceIndex],
               name: this.newSource.name,
-              url: this.newSource.url
+              url: this.newSource.url,
+              requestHeaders: this.parseSourceHeadersText(this.newSource.requestHeadersText),
+              downloadHeaders: this.parseSourceHeadersText(this.newSource.downloadHeadersText)
             };
 
             this.savePluginSources();
             this.showAddSourceModal = false;
-            this.newSource = { name: '', url: '' };
+            this.newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' };
             this.editingSourceIndex = null;
             this.fetchMarketPlugins();
             showToast('保存成功', 'success');

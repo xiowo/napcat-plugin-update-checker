@@ -198,7 +198,8 @@ function buildMirroredUrl(targetUrl: string, mirror: string | undefined, mode: '
 async function fetchJsonByMirrors(
     sourceUrl: string,
     mirrors: string[],
-    preferredMirror?: string
+    preferredMirror?: string,
+    extraHeaders?: Record<string, string>
 ): Promise<any | null> {
     const orderedMirrors = preferredMirror
         ? [preferredMirror, ...mirrors.filter(m => m !== preferredMirror)]
@@ -214,7 +215,11 @@ async function fetchJsonByMirrors(
             const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
             const res = await fetch(url, {
-                headers: { 'User-Agent': 'NapCat-WebUI', 'Cache-Control': 'no-cache' },
+                headers: {
+                    'User-Agent': 'NapCat-WebUI',
+                    'Cache-Control': 'no-cache',
+                    ...(extraHeaders || {}),
+                },
                 signal: AbortSignal.timeout(10000),
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -249,6 +254,8 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
         name: '社区插件库（回退）',
         url: 'https://raw.githubusercontent.com/HolyFoxTeam/napcat-plugin-community-index/refs/heads/main/plugins.v4.json',
         enabled: true,
+        requestHeaders: {},
+        downloadHeaders: {},
     };
     const sources = enabledSources.length > 0 ? enabledSources : [fallbackCommunitySource];
 
@@ -259,9 +266,10 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
     const sourceMap = new Map<string, Map<string, StorePlugin>>();
 
     for (const sourceObj of sources) {
-        const source = sourceObj.url;
-        const sourceKey = sourceObj.name || source;
-        let sourceBest = new Map<string, StorePlugin>();
+                const source = sourceObj.url;
+                const sourceKey = sourceObj.name || source;
+                const sourceRequestHeaders = sourceObj.requestHeaders || {};
+                let sourceBest = new Map<string, StorePlugin>();
         let sourceBestLabel = '';
 
         const attemptedBaseUrls = new Set<string>();
@@ -274,7 +282,11 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
                 const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
                 const res = await fetch(url, {
-                    headers: { 'User-Agent': 'NapCat-WebUI', 'Cache-Control': 'no-cache' },
+                    headers: {
+                        'User-Agent': 'NapCat-WebUI',
+                        'Cache-Control': 'no-cache',
+                        ...(sourceRequestHeaders || {}),
+                    },
                     signal: AbortSignal.timeout(10000),
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -287,7 +299,7 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
                 let statsObj: Record<string, StoreStatsItem> = {};
                 if (statsRawUrl) {
                     const statsUrl = resolveRelativeUrl(statsRawUrl, source);
-                    const statsData = await fetchJsonByMirrors(statsUrl, mirrors, mirror);
+                    const statsData = await fetchJsonByMirrors(statsUrl, mirrors, mirror, sourceRequestHeaders);
                     if (statsData && typeof statsData === 'object') {
                         statsObj = statsData as Record<string, StoreStatsItem>;
                     } else {
@@ -536,7 +548,7 @@ export async function checkSinglePlugin(pluginName: string): Promise<UpdateInfo 
 }
 
 /** 下载文件 */
-async function downloadWithMirror(url: string, destPath: string): Promise<void> {
+async function downloadWithMirror(url: string, destPath: string, extraHeaders?: Record<string, string>): Promise<void> {
     const selected = pluginState.config.selectedDownloadMirror;
     const downloadMirrorsConfig = pluginState.config.downloadMirrors?.length
         ? pluginState.config.downloadMirrors
@@ -559,7 +571,10 @@ async function downloadWithMirror(url: string, destPath: string): Promise<void> 
             attemptedUrls.add(finalUrl);
 
             const res = await fetch(finalUrl, {
-                headers: { 'User-Agent': 'napcat-plugin-update-checker' },
+                headers: {
+                    'User-Agent': 'napcat-plugin-update-checker',
+                    ...(extraHeaders || {}),
+                },
                 signal: AbortSignal.timeout(120000),
                 redirect: 'follow',
             });
@@ -724,8 +739,15 @@ export async function installPluginWithResult(update: UpdateInfo): Promise<Insta
             pluginState.logger.info(`使用指定镜像下载: ${update.mirror}`);
         }
 
+        const sourceDownloadHeaders = (() => {
+            const sourceName = String(update.source || '').trim();
+            if (!sourceName) return undefined;
+            const matched = (pluginState.config.pluginSources || []).find(s => String(s.name || '').trim() === sourceName);
+            return matched?.downloadHeaders;
+        })();
+
         // 下载
-        await downloadWithMirror(update.downloadUrl, tmpZip);
+        await downloadWithMirror(update.downloadUrl, tmpZip, sourceDownloadHeaders);
 
         // 解压到临时目录
         if (fs.existsSync(tmpExtract)) fs.rmSync(tmpExtract, { recursive: true, force: true });

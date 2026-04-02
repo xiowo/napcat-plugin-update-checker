@@ -81,6 +81,10 @@ export interface PluginSource {
     url: string;
     enabled: boolean;
     isBuiltIn?: boolean;
+    /** 商店索引请求头（用于拉取 index/stats） */
+    requestHeaders?: Record<string, string>;
+    /** 插件下载请求头（用于下载 zip） */
+    downloadHeaders?: Record<string, string>;
 }
 
 /**
