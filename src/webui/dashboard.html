@@ -1379,10 +1379,21 @@
 
       <!-- 添加/编辑商店源模态框 -->
       <div x-show="showAddSourceModal" x-cloak
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl w-full max-w-md p-6 animate-fade-in">
-          <h3 class="font-bold text-lg mb-4" style="color: var(--text)"
-            x-text="editingSourceIndex === null ? '添加商店源' : '编辑商店源'"></h3>
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-[60] p-4 mobile-modal-top-gap">
+        <div class="modal-panel max-w-md p-4 sm:p-6 animate-fade-in">
+          <div class="modal-header-sticky flex items-center justify-between mb-4 gap-3">
+            <div>
+              <h3 class="font-bold text-lg" style="color: var(--text)"
+                x-text="editingSourceIndex === null ? '添加商店源' : '编辑商店源'"></h3>
+              <p class="text-xs mt-1" style="color: var(--text-secondary)">可配置商店源地址及可选请求头</p>
+            </div>
+            <button
+              @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' }"
+              class="btn btn-secondary text-sm shrink-0">
+              关闭
+            </button>
+          </div>
+
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary)">源名称</label>
@@ -1412,20 +1423,22 @@
                   class="input w-full" rows="4" style="resize: vertical;"></textarea>
               </div>
             </div>
-            <div class="flex items-center justify-between pt-4">
-              <button @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' }"
+          </div>
+
+          <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <button
+              @click="showAddSourceModal = false; editingSourceIndex = null; newSource = { name: '', url: '', requestHeadersText: '', downloadHeadersText: '' }"
+              class="btn btn-secondary text-sm">
+              取消
+            </button>
+            <div class="flex items-center justify-end gap-2">
+              <button x-show="shouldShowResetCommunitySourceButton()" x-cloak @click="resetCommunitySourceUrlInEditor()"
                 class="btn btn-secondary text-sm">
-                取消
+                重置源地址
               </button>
-              <div class="flex items-center gap-2">
-                <button x-show="shouldShowResetCommunitySourceButton()" x-cloak @click="resetCommunitySourceUrlInEditor()"
-                  class="btn btn-secondary text-sm">
-                  重置源地址
-                </button>
-                <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
-                  <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
-                </button>
-              </div>
+              <button @click="editingSourceIndex === null ? addSource() : saveSource()" class="btn btn-primary text-sm">
+                <span x-text="editingSourceIndex === null ? '确定' : '保存'"></span>
+              </button>
             </div>
           </div>
         </div>
