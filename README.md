@@ -82,6 +82,72 @@
 
 ---
 
+## 🧱 自建商店索引文件结构参考
+
+插件会读取商店索引 JSON，推荐使用以下结构（`statsUrl` 可选）：
+
+```json
+{
+  "plugins": [
+    {
+      "id": "example-plugin",
+      "name": "示例插件",
+      "version": "1.2.3",
+      "downloadUrl": "https://github.com/owner/repo/releases/download/v1.2.3/example-plugin.zip",
+      "description": "这是一个示例插件",
+      "author": "作者名"
+    }
+  ],
+  "statsUrl": "https://example.com/plugins.stats.json"
+}
+```
+
+### 重要
+
+- `statsUrl` **不是必须**，只是可选的外部增强数据引用。
+- `plugins[]` 中可直接写用于更新判断的核心字段：`id + version + downloadUrl`。
+- 若配置了 `statsUrl`，会按 `plugin.id` 合并，且 `statsUrl` 中同名字段优先级更高（覆盖主索引）。
+- 当前实现里，`downloads / updateTime` 属于扩展统计字段，虽然可以直接放在plugins[] 中，但是仍建议放在 `statsUrl` 对应文件中。
+
+### 顶层字段
+
+| 字段 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `plugins` | `array` | 是 | 插件列表 |
+| `statsUrl` | `string` | 否 | 可选增强信息地址（支持相对路径，会基于当前索引 URL 解析） |
+
+### `plugins[]` 字段
+
+| 字段 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `id` | `string` | 是 | 插件唯一标识（用于匹配已安装插件） |
+| `name` | `string` | 否 | 插件显示名（缺省时回退为 `id`） |
+| `version` | `string` | 是* | 插件版本（可被 `statsUrl` 同名项覆盖） |
+| `downloadUrl` | `string` | 是* | 插件下载地址（可被 `statsUrl` 同名项覆盖） |
+| `description` | `string` | 否 | 插件描述 |
+| `author` | `string` | 否 | 插件作者 |
+
+> `version` 与 `downloadUrl` 在最终生效数据中必须存在：  
+> - 可直接写在 `plugins[]` 中；  
+> - 也可由 `statsUrl` 提供并覆盖。
+
+### `statsUrl` 对应文件结构（可选）
+
+若配置了 `statsUrl`，其返回对象应为 `Record<pluginId, stats>`：
+
+```json
+{
+  "example-plugin": {
+    "version": "1.2.4",
+    "downloadUrl": "https://github.com/owner/repo/releases/download/v1.2.4/example-plugin.zip",
+    "downloads": 1234,
+    "updateTime": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
 ## ❤️ 特别鸣谢
 本插件的渲染推送渲染样式借鉴于 [@DenFengLai](https://github.com/DenFengLai/) 大佬开发的 [DF-Plugin](https://github.com/Denfenglai/DF-Plugin)
 
