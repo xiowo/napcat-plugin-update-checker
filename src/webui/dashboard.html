@@ -5742,19 +5742,30 @@
           };
         },
 
-        hasGitPushRepoForPlugin(installedPlugin) {
+        getAutoGitPushRepoMatch(installedPlugin) {
           const repoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
           const parsed = this.parseGitRepoInfoFromUrl(repoUrl);
-          if (!parsed) return false;
+          if (!parsed) return null;
 
+          const autoIndex = this.findAutoGitPushConfigIndex(this.gitPushConfigs || []);
+          if (autoIndex < 0) return null;
+
+          const autoPush = (this.gitPushConfigs || [])[autoIndex];
+          const repos = this.getGitPushRepos(autoPush).map(repo => ({ ...repo }));
           const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
-          return (this.gitPushConfigs || []).some(push =>
-            this.getGitPushRepos(push).some(repo => {
-              const repoPath = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
-              const repoUrlText = String(repo.repoUrl || '').toLowerCase();
-              return repoPath === targetPath || repoUrlText.includes(targetPath);
-            })
-          );
+
+          const repoIndex = repos.findIndex(repo => {
+            const repoPath = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+            const repoUrlText = String(repo.repoUrl || '').toLowerCase();
+            return repoPath === targetPath || repoUrlText.includes(targetPath);
+          });
+
+          if (repoIndex < 0) return null;
+          return { autoIndex, repoIndex, parsed };
+        },
+
+        hasGitPushRepoForPlugin(installedPlugin) {
+          return !!this.getAutoGitPushRepoMatch(installedPlugin);
         },
 
         canSavePluginSourceEdit() {
@@ -5872,7 +5883,7 @@
             || !this.isSameStringArray(autoPushNotifyGroups, currentAutoPushGroups)
             || !this.isSameStringArray(autoPushNotifyUsers, currentAutoPushUsers);
 
-          if (this.pluginSourceEditUseGit || autoPushInfoChanged) {
+          if (this.pluginSourceEditUseGit || autoPushInfoChanged || !this.pluginSourceEditUseGit) {
             const parsed = this.pluginSourceEditUseGit ? this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl) : null;
             if (this.pluginSourceEditUseGit && !parsed) {
               showToast('未识别到有效仓库地址，无法启用 Git 检测更新', 'error');
@@ -5892,65 +5903,81 @@
               repos: []
             });
 
-            if (autoIndex < 0) {
+            if (autoIndex < 0 && (this.pluginSourceEditUseGit || autoPushInfoChanged)) {
               next.push(buildDefaultAutoPush());
               autoIndex = next.length - 1;
               createdGitPush = true;
             }
 
-            const oldPush = next[autoIndex] || buildDefaultAutoPush();
-            let repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+            if (autoIndex >= 0) {
+              const oldPush = next[autoIndex] || buildDefaultAutoPush();
+              let repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+              const reposBeforeLength = repos.length;
 
-            if (parsed) {
-              const finalProvider = parsed.isCustomProvider
-                ? this.ensureCustomProviderByHost(parsed.host, 'github')
-                : parsed.provider;
+              if (this.pluginSourceEditUseGit && parsed) {
+                const finalProvider = parsed.isCustomProvider
+                  ? this.ensureCustomProviderByHost(parsed.host, 'github')
+                  : parsed.provider;
 
-              const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
-              const newRepo = {
-                id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-                provider: finalProvider,
-                repoUrl: parsed.repoUrl,
-                owner: parsed.owner,
-                repo: parsed.repo,
-                commitEnabled: false,
-                commitBranch: '',
-                releaseEnabled: false,
-                releaseBranch: ''
-              };
-
-              const sameRepoIndex = repos.findIndex(repo => {
-                const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
-                return pathText === targetPath;
-              });
-
-              if (sameRepoIndex >= 0) {
-                repos[sameRepoIndex] = {
-                  ...repos[sameRepoIndex],
+                const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+                const newRepo = {
+                  id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
                   provider: finalProvider,
                   repoUrl: parsed.repoUrl,
                   owner: parsed.owner,
-                  repo: parsed.repo
+                  repo: parsed.repo,
+                  commitEnabled: false,
+                  commitBranch: '',
+                  releaseEnabled: false,
+                  releaseBranch: ''
                 };
+
+                const sameRepoIndex = repos.findIndex(repo => {
+                  const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+                  return pathText === targetPath;
+                });
+
+                if (sameRepoIndex >= 0) {
+                  repos[sameRepoIndex] = {
+                    ...repos[sameRepoIndex],
+                    provider: finalProvider,
+                    repoUrl: parsed.repoUrl,
+                    owner: parsed.owner,
+                    repo: parsed.repo
+                  };
+                } else {
+                  repos.push(newRepo);
+                }
               } else {
-                repos.push(newRepo);
+                const currentMatch = this.getAutoGitPushRepoMatch(this.pluginSourceEditTarget);
+                if (currentMatch && currentMatch.autoIndex === autoIndex) {
+                  repos.splice(currentMatch.repoIndex, 1);
+                }
+              }
+
+              next[autoIndex] = {
+                ...oldPush,
+                id: this.AUTO_GIT_PUSH_CONFIG_ID,
+                name: autoPushName,
+                enabled: oldPush.enabled === true,
+                notifyGroups: autoPushNotifyGroups,
+                notifyUsers: autoPushNotifyUsers,
+                renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
+                repos
+              };
+
+              const repoChanged = repos.length !== reposBeforeLength
+                || autoPushInfoChanged
+                || String(oldPush.name || '') !== autoPushName
+                || !this.isSameStringArray(oldPush.notifyGroups || [], autoPushNotifyGroups)
+                || !this.isSameStringArray(oldPush.notifyUsers || [], autoPushNotifyUsers);
+
+              if (repoChanged || createdGitPush) {
+                await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
+                this.gitPushConfigs = next;
+                updatedGitPush = true;
               }
             }
-
-            next[autoIndex] = {
-              ...oldPush,
-              id: this.AUTO_GIT_PUSH_CONFIG_ID,
-              name: autoPushName,
-              enabled: oldPush.enabled === true,
-              notifyGroups: autoPushNotifyGroups,
-              notifyUsers: autoPushNotifyUsers,
-              renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
-              repos
-            };
-
-            await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
-            this.gitPushConfigs = next;
-            updatedGitPush = true;
           }
 
           const pluginName = this.pluginSourceEditTarget.name;
