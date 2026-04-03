@@ -298,6 +298,21 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
             case '状态': {
                 if (await denyIfNoPermission(ctx, event)) return;
+
+                const gitPushConfigs = pluginState.config.gitPushConfigs || [];
+                const enabledGitPushConfigs = gitPushConfigs.filter(item => item.enabled !== false);
+                const gitRepoCount = enabledGitPushConfigs.reduce((sum, item) => {
+                    if (Array.isArray(item.repos) && item.repos.length > 0) {
+                        return sum + item.repos.length;
+                    }
+                    if (item.provider && item.owner && item.repo) {
+                        return sum + 1;
+                    }
+                    return sum;
+                }, 0);
+                const gitNotifyGroupCount = enabledGitPushConfigs.reduce((sum, item) => sum + (item.notifyGroups?.length || 0), 0);
+                const gitNotifyUserCount = enabledGitPushConfigs.reduce((sum, item) => sum + (item.notifyUsers?.length || 0), 0);
+
                 const statusText = [
                     `[= 插件状态 =]`,
                     `运行时长: ${pluginState.getUptimeFormatted()}`,
@@ -306,6 +321,12 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                     `定时检查: ${pluginState.config.enableSchedule ? '✅ 开启' : '❌ 关闭'}`,
                     `检查间隔: ${pluginState.config.checkInterval} 分钟`,
                     `更新模式: ${pluginState.config.updateMode === 'auto' ? '自动更新' : '仅通知'}`,
+                    `[= 仓库状态 =]`,
+                    `Git定时检查: ${pluginState.config.gitEnableSchedule !== false ? '✅ 开启' : '❌ 关闭'}`,
+                    `Git检查间隔: ${pluginState.config.gitCheckInterval || DEFAULT_CONFIG.gitCheckInterval} 分钟`,
+                    `Git推送列表: ${enabledGitPushConfigs.length} 个`,
+                    `Git仓库数量: ${gitRepoCount} 个`,
+                    `Git推送目标: 群 ${gitNotifyGroupCount} / 用户 ${gitNotifyUserCount}`,
                 ].join('\n');
                 await sendReply(ctx, event, statusText);
                 break;
