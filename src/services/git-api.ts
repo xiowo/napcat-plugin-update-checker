@@ -156,10 +156,15 @@ function buildDebugLine(meta: GitRequestDebugMeta, elapsed: number): string {
     return `[Git检测] ${meta.repo} 分支=${meta.branch || '-'} 用时=${elapsed}ms`;
 }
 
+const GIT_API_TIMEOUT_MS = 15000;
+
 async function fetchJson(url: string, headers: Record<string, string>, meta: GitRequestDebugMeta): Promise<any> {
     const startedAt = Date.now();
     try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, {
+            headers,
+            signal: AbortSignal.timeout(GIT_API_TIMEOUT_MS),
+        });
         const elapsed = Date.now() - startedAt;
 
         if (!res.ok) {

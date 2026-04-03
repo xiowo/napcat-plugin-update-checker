@@ -1356,16 +1356,14 @@
               </button>
 
               <template x-for="item in marketPaginationItems" :key="'page-item-' + item">
-                <template x-if="typeof item === 'number'">
-                  <button class="btn text-sm px-3 py-1.5 min-w-[36px] shrink-0"
+                <span class="shrink-0">
+                  <button x-show="typeof item === 'number'" class="btn text-sm px-3 py-1.5 min-w-[36px] shrink-0"
                     :class="item === marketCurrentPage ? 'btn-primary' : 'btn-secondary'"
                     @click="marketPage = item"
                     x-text="item">
                   </button>
-                </template>
-                <template x-if="typeof item !== 'number'">
-                  <span class="px-1 text-sm select-none shrink-0" style="color: var(--text-secondary)">...</span>
-                </template>
+                  <span x-show="typeof item !== 'number'" class="px-1 text-sm select-none" style="color: var(--text-secondary)">...</span>
+                </span>
               </template>
 
               <button class="btn btn-secondary text-sm px-3 py-1.5 shrink-0"
@@ -4318,6 +4316,21 @@
           return cleaned.trim();
         },
 
+        sanitizeMarkdownUrl(url) {
+          const raw = String(url || '').trim();
+          if (!raw) return '';
+
+          try {
+            const parsed = new URL(raw, window.location.origin);
+            const protocol = String(parsed.protocol || '').toLowerCase();
+            if (protocol === 'http:' || protocol === 'https:') {
+              return parsed.toString();
+            }
+          } catch (e) { }
+
+          return '';
+        },
+
         // 简单的 Markdown 渲染函数
         renderMarkdown(text) {
           if (!text) return '';
@@ -4343,11 +4356,19 @@
           html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
           html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-          // 链接
-          html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-blue-500 hover:underline">$1</a>');
+          // 链接（仅允许 http/https）
+          html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text, url) => {
+            const safeUrl = this.sanitizeMarkdownUrl(url);
+            if (!safeUrl) return text;
+            return `<a href="${safeUrl}" target="_blank" rel="noreferrer" class="text-blue-500 hover:underline">${text}</a>`;
+          });
 
-          // 图片
-          html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-2">');
+          // 图片（仅允许 http/https）
+          html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => {
+            const safeUrl = this.sanitizeMarkdownUrl(url);
+            if (!safeUrl) return alt || '';
+            return `<img src="${safeUrl}" alt="${alt}" class="max-w-full h-auto rounded my-2">`;
+          });
 
           // 无序列表
           html = html.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');

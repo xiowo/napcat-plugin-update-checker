@@ -844,7 +844,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
         }
     });
 
-    // 导入本地插件（zip 文件 base64 或文件夹路径）
+    // 导入本地插件（仅支持 zip 文件 base64）
     base.post('/import-plugin', async (req: any, res: any) => {
         try {
             const body = await readJsonBody(req, '导入插件');
@@ -872,35 +872,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             }
 
             if (folderPath) {
-                // 从文件夹路径导入
-                if (!fs.existsSync(folderPath)) {
-                    return res.json({ code: -1, message: '文件夹路径不存在' });
-                }
-                const pkgJsonPath = pathLib.join(folderPath, 'package.json');
-                if (!fs.existsSync(pkgJsonPath)) {
-                    return res.json({ code: -1, message: '目标文件夹中没有 package.json，不是有效的插件' });
-                }
-                const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-                const pluginId = pkgJson.name || pathLib.basename(folderPath);
-                const pluginsDir = pm.getPluginPath();
-                const destDir = pathLib.join(pluginsDir, pluginId);
-
-                copyDirSync(folderPath, destDir);
-
-                // 加载插件
-                try {
-                    const existing = pm.getPluginInfo(pluginId);
-                    if (existing) {
-                        await pm.reloadPlugin(pluginId);
-                    } else {
-                        await pm.loadPluginById(pluginId);
-                    }
-                } catch (e) {
-                    ctx.logger.warn(`加载插件 ${pluginId} 失败:`, e);
-                }
-
-                ctx.logger.info(`从文件夹导入插件成功: ${pluginId}`);
-                return res.json({ code: 0, message: `插件 ${pkgJson.plugin || pluginId} 导入成功` });
+                return res.json({ code: -1, message: '出于安全考虑，已禁用 folderPath 导入，请使用 zip 文件上传导入' });
             }
 
             if (fileData && fileName) {
@@ -969,7 +941,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 return res.json({ code: 0, message: `插件 ${pkgJson.plugin || pluginId} 导入成功` });
             }
 
-            res.json({ code: -1, message: '请提供 zip 文件或文件夹路径' });
+            res.json({ code: -1, message: '请提供 zip 文件' });
         } catch (e) {
             ctx.logger.error('导入插件失败:', e);
             res.json({ code: -1, message: String(e) });
