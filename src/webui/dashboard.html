@@ -5325,6 +5325,25 @@
             releaseBranch: this.gitRepoForm.releaseBranch || ''
           };
 
+          const normalizeRepoKey = (repo) => [
+            String(repo?.provider || '').trim().toLowerCase(),
+            String(repo?.owner || '').trim().toLowerCase(),
+            String(repo?.repo || '').trim().toLowerCase()
+          ].join('|');
+
+          const payloadKey = normalizeRepoKey(payload);
+          const exists = (Array.isArray(this.gitForm.repos) ? this.gitForm.repos : []).some((repo, idx) => {
+            if (this.gitRepoEditingIndex !== null && this.gitRepoEditingIndex >= 0 && idx === this.gitRepoEditingIndex) {
+              return false;
+            }
+            return normalizeRepoKey(repo) === payloadKey;
+          });
+
+          if (exists) {
+            showToast(`仓库 ${payload.owner}/${payload.repo} 已添加`, 'error');
+            return;
+          }
+
           const nextRepos = Array.isArray(this.gitForm.repos) ? [...this.gitForm.repos] : [];
           if (this.gitRepoEditingIndex !== null && this.gitRepoEditingIndex >= 0) {
             nextRepos[this.gitRepoEditingIndex] = payload;

@@ -302,6 +302,25 @@ function buildRepoIdentity(repo: { provider: string; owner: string; repo: string
     ].join('|');
 }
 
+function getDuplicateRepoInPushConfig(config: GitPushConfig): { provider: string; owner: string; repo: string } | null {
+    const repoSet = new Set<string>();
+    const repos = normalizePushRepos(config);
+
+    for (const repo of repos) {
+        const key = buildRepoIdentity(repo);
+        if (repoSet.has(key)) {
+            return {
+                provider: String(repo.provider || '').trim(),
+                owner: String(repo.owner || '').trim(),
+                repo: String(repo.repo || '').trim(),
+            };
+        }
+        repoSet.add(key);
+    }
+
+    return null;
+}
+
 function collectAddedRepoConfigIds(
     previousConfigs: GitPushConfig[],
     nextConfigs: GitPushConfig[]
@@ -1022,6 +1041,17 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 ? pluginState.config.gitPushConfigs as GitPushConfig[]
                 : [];
             const nextConfigs = body.gitPushConfigs as GitPushConfig[];
+
+            for (const config of nextConfigs) {
+                const duplicatedRepo = getDuplicateRepoInPushConfig(config);
+                if (duplicatedRepo) {
+                    const listName = String(config?.name || '').trim() || String(config?.id || '').trim() || '未命名列表';
+                    return res.json({
+                        code: -1,
+                        message: `仓库 ${duplicatedRepo.owner}/${duplicatedRepo.repo} 已经添加过啦！`
+                    });
+                }
+            }
 
             pluginState.config.gitPushConfigs = nextConfigs;
             pluginState.saveConfig();
