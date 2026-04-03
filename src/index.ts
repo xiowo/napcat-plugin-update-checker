@@ -321,10 +321,10 @@ function getDuplicateRepoInPushConfig(config: GitPushConfig): { provider: string
     return null;
 }
 
-function collectAddedRepoConfigIds(
+function collectAddedReposByConfigId(
     previousConfigs: GitPushConfig[],
     nextConfigs: GitPushConfig[]
-): string[] {
+): Array<{ configId: string; repos: Array<{ provider: string; owner: string; repo: string }> }> {
     const previousByConfigId = new Map<string, Set<string>>();
 
     for (const config of previousConfigs) {
@@ -334,7 +334,8 @@ function collectAddedRepoConfigIds(
         previousByConfigId.set(configId, repoSet);
     }
 
-    const hit = new Set<string>();
+    const out: Array<{ configId: string; repos: Array<{ provider: string; owner: string; repo: string }> }> = [];
+
     for (const config of nextConfigs) {
         const configId = String(config?.id || '').trim();
         if (!configId) continue;
@@ -342,14 +343,21 @@ function collectAddedRepoConfigIds(
 
         const previousRepoSet = previousByConfigId.get(configId) || new Set<string>();
         const currentRepos = normalizePushRepos(config);
-        const hasNewRepo = currentRepos.some(repo => !previousRepoSet.has(buildRepoIdentity(repo)));
 
-        if (hasNewRepo) {
-            hit.add(configId);
+        const addedRepos = currentRepos
+            .filter(repo => !previousRepoSet.has(buildRepoIdentity(repo)))
+            .map(repo => ({
+                provider: String(repo.provider || '').trim(),
+                owner: String(repo.owner || '').trim(),
+                repo: String(repo.repo || '').trim(),
+            }));
+
+        if (addedRepos.length > 0) {
+            out.push({ configId, repos: addedRepos });
         }
     }
 
-    return Array.from(hit);
+    return out;
 }
 
 /**
@@ -981,7 +989,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                     gitRenderMode: config.gitRenderMode || 'text',
                     gitEnableSchedule: config.gitEnableSchedule !== false,
                     gitCheckInterval: config.gitCheckInterval || DEFAULT_CONFIG.gitCheckInterval,
-                    gitPushOnFirstRepoAdd: config.gitPushOnFirstRepoAdd !== false,
+                    gitPushOnFirstRepoAdd: config.gitPushOnFirstRepoAdd === true,
                 }
             });
         } catch (e) {
@@ -1057,14 +1065,16 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             pluginState.saveConfig();
 
             let autoTriggeredCount = 0;
-            if (pluginState.config.gitPushOnFirstRepoAdd !== false) {
-                const configIds = collectAddedRepoConfigIds(previousConfigs, nextConfigs);
-                for (const configId of configIds) {
+            if (pluginState.config.gitPushOnFirstRepoAdd === true) {
+                const addedReposByConfig = collectAddedReposByConfigId(previousConfigs, nextConfigs);
+                for (const item of addedReposByConfig) {
                     try {
-                        await runGitPushDebugForConfig(configId);
+                        await runGitPushDebugForConfig(item.configId, undefined, {
+                            repoKeys: item.repos.map(repo => buildRepoIdentity(repo))
+                        });
                         autoTriggeredCount++;
                     } catch (e) {
-                        ctx.logger.warn(`首次添加仓库后自动推送失败，configId=${configId}:`, e);
+                        ctx.logger.warn(`首次添加仓库后自动推送失败，configId=${item.configId}:`, e);
                     }
                 }
             }

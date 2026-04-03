@@ -500,11 +500,6 @@
       border: 1px solid var(--border);
     }
 
-    [data-theme="dark"] .secret-forward-panel {
-      background: #2a231e;
-      border-color: #3a302a;
-    }
-
     /* 星星闪烁动画 */
     @keyframes starPulse {
 
@@ -3178,7 +3173,7 @@
         gitRenderMode: 'text',
         gitEnableSchedule: true,
         gitCheckInterval: 30,
-        gitPushOnFirstRepoAdd: true
+        gitPushOnFirstRepoAdd: false
       };
     }
 
@@ -3295,7 +3290,7 @@
         gitRenderMode: 'text',
         gitScheduleEnabled: true,
         gitCheckInterval: 30,
-        gitPushOnFirstRepoAdd: true,
+        gitPushOnFirstRepoAdd: false,
         gitDefaultApiBaseMap: {
           GitHub: 'https://api.github.com/repos',
           Gitee: 'https://gitee.com/api/v5/repos',

@@ -42,7 +42,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
     gitRenderMode: 'text',
     gitEnableSchedule: true,
     gitCheckInterval: 30,
-    gitPushOnFirstRepoAdd: true,
+    gitPushOnFirstRepoAdd: false,
     // 主题配置
     themePreset: 'warm',
     themeCustomColor: '#e8b896',

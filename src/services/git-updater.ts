@@ -682,6 +682,14 @@ function buildRepoUniqueKey(repo: GitPushRepoConfig): string {
     return [provider, owner, name, commitEnabled, commitBranch, releaseEnabled, releaseBranch].join('|');
 }
 
+function buildRepoBaseIdentity(repo: { provider: GitProviderName | string; owner: string; repo: string }): string {
+    return [
+        String(repo.provider || '').trim().toLowerCase(),
+        String(repo.owner || '').trim().toLowerCase(),
+        String(repo.repo || '').trim().toLowerCase(),
+    ].join('|');
+}
+
 function buildUpdateTextBlock(item: GitUpdateItem): string {
     const lines: string[] = [
         `📦 ${providerEmoji(item.provider)}仓库更新通知`,
@@ -1112,7 +1120,8 @@ export async function runGitPushCheck(): Promise<{ skipped: boolean; updates: nu
 
 export async function runGitPushDebugForConfig(
     configId: string,
-    target?: { groups?: string[]; users?: string[] }
+    target?: { groups?: string[]; users?: string[] },
+    options?: { repoKeys?: string[] }
 ): Promise<{ ok: boolean; message: string; updates: number }> {
     const configs = pluginState.config.gitPushConfigs || [];
     const config = configs.find(item => item.id === configId);
@@ -1125,9 +1134,18 @@ export async function runGitPushDebugForConfig(
         return { ok: false, message: '该推送列表未配置仓库', updates: 0 };
     }
 
+    const repoKeyFilter = new Set((options?.repoKeys || []).map(key => String(key || '').trim().toLowerCase()).filter(Boolean));
+    const selectedRepos = repoKeyFilter.size > 0
+        ? repos.filter(repo => repoKeyFilter.has(buildRepoBaseIdentity(repo)))
+        : repos;
+
+    if (selectedRepos.length === 0) {
+        return { ok: false, message: '未命中需要立即推送的仓库', updates: 0 };
+    }
+
     const cache = loadCache();
     const allUpdates: GitUpdateItem[] = [];
-    for (const repo of repos) {
+    for (const repo of selectedRepos) {
         const updates = await collectRepoUpdates(repo, cache, { forcePush: true });
         if (updates.length > 0) {
             allUpdates.push(...updates);
