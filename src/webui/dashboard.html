@@ -1893,7 +1893,9 @@
                     </div>
                   </div>
                   <label class="toggle-switch shrink-0 self-center mr-1">
-                    <input type="checkbox" :checked="push.enabled"
+                    <input type="checkbox" :checked="isAutoGitPushConfig(push) ? true : push.enabled"
+                      :disabled="isAutoGitPushConfig(push)"
+                      :title="isAutoGitPushConfig(push) ? '自动推送列表固定启用，不可关闭' : ''"
                       @change="toggleGitPushEnabled(index, $event.target.checked)">
                     <span class="toggle-slider"></span>
                   </label>
@@ -2335,7 +2337,7 @@
                     <label class="block text-sm mb-1 text-slate-500">Commit 检测分支</label>
                     <input type="text" x-model="gitRepoForm.commitBranch" class="input w-full"
                       :disabled="!gitRepoForm.commitEnabled"
-                      :placeholder="gitRepoForm.commitEnabled ? '留空则自动获取远程默认分支' : '关闭后无需配置'">
+                      :placeholder="gitRepoForm.commitEnabled ? '留空则自动获取远程默认分支' : '开启后可配置'">
                   </div>
                 </div>
                 <div class="section-block space-y-3">
@@ -2345,18 +2347,20 @@
                       <p class="text-xs mt-1" style="color: var(--text-secondary)">默认关闭，开启后才会检查 Release</p>
                     </div>
                     <label class="toggle-switch">
-                      <input type="checkbox" x-model="gitRepoForm.releaseEnabled"
+                      <input type="checkbox"
+                        :checked="isEditingAutoGitPushRepo() ? true : gitRepoForm.releaseEnabled"
                         :disabled="isEditingAutoGitPushRepo()"
-                        :title="isEditingAutoGitPushRepo() ? '自动推送列表已强制开启 Release 检测，不可修改' : ''">
+                        :title="isEditingAutoGitPushRepo() ? '自动推送列表已强制开启 Release 检测，不可修改' : ''"
+                        @change="gitRepoForm.releaseEnabled = isEditingAutoGitPushRepo() ? true : $event.target.checked">
                       <span class="toggle-slider"></span>
                     </label>
                   </div>
 
                   <div>
-                    <label class="block text-sm mb-1 text-slate-500">Release 分支 / 标识</label>
+                    <label class="block text-sm mb-1 text-slate-500">Release 分支</label>
                     <input type="text" x-model="gitRepoForm.releaseBranch" class="input w-full"
-                      :disabled="!gitRepoForm.releaseEnabled || isEditingAutoGitPushRepo()"
-                      :placeholder="isEditingAutoGitPushRepo() ? '自动推送列表固定自动获取，不可修改' : (gitRepoForm.releaseEnabled ? (gitRepoForm.commitEnabled ? '不填则使用提交配置的分支' : '留空自动获取') : '开启后可配置')">
+                      :disabled="!gitRepoForm.releaseEnabled"
+                      :placeholder="gitRepoForm.releaseEnabled ? (gitRepoForm.commitEnabled ? '不填则使用提交配置的分支' : '留空自动获取') : '开启后可配置'">
                     <p class="text-xs mt-1" style="color: var(--text-secondary)"
                       x-text="gitRepoForm.commitEnabled ? '开启后如果不填写，将自动使用 Commit 检测分支' : 'Commit 检测关闭时，留空将自动获取默认分支'">
                     </p>
@@ -5221,8 +5225,8 @@
               repo: push.repo,
               commitEnabled: push.commitEnabled !== false,
               commitBranch: push.commitBranch || '',
-              releaseEnabled: this.isAutoGitPushConfig(push) ? true : false,
-              releaseBranch: this.isAutoGitPushConfig(push) ? '' : (push.releaseBranch || '')
+              releaseEnabled: push.releaseEnabled === true,
+              releaseBranch: push.releaseBranch || ''
             }];
           }
           return [];
@@ -5270,7 +5274,6 @@
 
           if (this.isEditingAutoGitPushRepo()) {
             this.gitRepoForm.releaseEnabled = true;
-            this.gitRepoForm.releaseBranch = '';
           }
 
           this.showGitRepoModal = true;
@@ -5330,7 +5333,6 @@
             return;
           }
 
-          const forceReleaseEnabled = this.isEditingAutoGitPushRepo();
           const payload = {
             id: this.gitRepoForm.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
             provider: this.gitRepoForm.provider,
@@ -5339,8 +5341,8 @@
             repo: this.gitRepoForm.repo,
             commitEnabled: this.gitRepoForm.commitEnabled !== false,
             commitBranch: this.gitRepoForm.commitBranch || '',
-            releaseEnabled: forceReleaseEnabled ? true : this.gitRepoForm.releaseEnabled === true,
-            releaseBranch: forceReleaseEnabled ? '' : (this.gitRepoForm.releaseBranch || '')
+            releaseEnabled: this.isEditingAutoGitPushRepo() ? true : this.gitRepoForm.releaseEnabled === true,
+            releaseBranch: this.gitRepoForm.releaseBranch || ''
           };
 
           const normalizeRepoKey = (repo) => [
@@ -5443,10 +5445,10 @@
           };
 
           if (this.isAutoGitPushConfig(payload)) {
+            payload.enabled = true;
             payload.repos = payload.repos.map(item => ({
               ...item,
-              releaseEnabled: true,
-              releaseBranch: ''
+              releaseEnabled: true
             }));
           }
 
@@ -5521,7 +5523,11 @@
         async toggleGitPushEnabled(index, enabled) {
           const next = [...this.gitPushConfigs];
           if (!next[index]) return;
-          next[index].enabled = enabled;
+          if (this.isAutoGitPushConfig(next[index])) {
+            next[index].enabled = true;
+          } else {
+            next[index].enabled = enabled;
+          }
           try {
             await this.api('/git-push-configs', 'POST', { gitPushConfigs: next });
             this.gitPushConfigs = next;
@@ -5986,7 +5992,7 @@
             const buildDefaultAutoPush = () => ({
               id: this.AUTO_GIT_PUSH_CONFIG_ID,
               name: autoPushName,
-              enabled: false,
+              enabled: true,
               notifyGroups: autoPushNotifyGroups,
               notifyUsers: autoPushNotifyUsers,
               renderMode: this.gitRenderMode || 'text',
@@ -6060,17 +6066,11 @@
                 }
               }
 
-              repos = repos.map(repo => ({
-                ...repo,
-                releaseEnabled: true,
-                releaseBranch: ''
-              }));
-
               next[autoIndex] = {
                 ...oldPush,
                 id: this.AUTO_GIT_PUSH_CONFIG_ID,
                 name: autoPushName,
-                enabled: oldPush.enabled === true,
+                enabled: true,
                 notifyGroups: autoPushNotifyGroups,
                 notifyUsers: autoPushNotifyUsers,
                 renderMode: oldPush.renderMode || this.gitRenderMode || 'text',
