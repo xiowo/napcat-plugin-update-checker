@@ -39,7 +39,6 @@ export const DEFAULT_CONFIG: PluginConfig = {
         { provider: 'CNB', token: '' },
     ],
     gitPushConfigs: [],
-    gitAutoFetchDefaultBranch: true,
     gitRenderMode: 'text',
     gitEnableSchedule: true,
     gitCheckInterval: 30,

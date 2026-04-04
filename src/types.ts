@@ -55,8 +55,6 @@ export interface PluginConfig {
     gitProviders?: GitProviderConfig[];
     /** Git 更新推送配置 */
     gitPushConfigs?: GitPushConfig[];
-    /** 启动时自动补全默认分支 */
-    gitAutoFetchDefaultBranch?: boolean;
     /** 推送渲染模式（text/render） */
     gitRenderMode?: GitPushRenderMode;
     /** Git 推送自动检查开关（独立于插件商店更新检测） */

@@ -1042,9 +1042,9 @@ async function collectRepoUpdates(
     const commitEnabled = repoConfig.commitEnabled !== false;
 
     // Commit 更新
-    if (commitEnabled && (repoConfig.commitBranch || pluginState.config.gitAutoFetchDefaultBranch)) {
+    if (commitEnabled) {
         let branch = repoConfig.commitBranch;
-        if (!branch && pluginState.config.gitAutoFetchDefaultBranch) {
+        if (!branch) {
             const defaultBranch = await getDefaultBranch(repoPath, repoConfig.provider, token);
             if (defaultBranch) {
                 branch = defaultBranch;

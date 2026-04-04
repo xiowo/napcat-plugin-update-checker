@@ -62,7 +62,6 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     // Git 更新推送配置清洗
     if (Array.isArray(raw.gitProviders)) out.gitProviders = raw.gitProviders as any;
     if (Array.isArray(raw.gitPushConfigs)) out.gitPushConfigs = raw.gitPushConfigs as any;
-    if (typeof raw.gitAutoFetchDefaultBranch === 'boolean') out.gitAutoFetchDefaultBranch = raw.gitAutoFetchDefaultBranch;
     if (raw.gitRenderMode === 'text' || raw.gitRenderMode === 'render') out.gitRenderMode = raw.gitRenderMode;
     if (typeof raw.gitEnableSchedule === 'boolean') out.gitEnableSchedule = raw.gitEnableSchedule;
     if (typeof raw.gitCheckInterval === 'number') out.gitCheckInterval = Math.max(raw.gitCheckInterval, 1);

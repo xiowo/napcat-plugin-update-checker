@@ -1828,8 +1828,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div class="section-block">
               <div class="text-xs mb-1" style="color: var(--text-secondary)">自动获取远程默认分支</div>
-              <div class="font-semibold" style="color: var(--text)"
-                x-text="gitAutoFetchDefaultBranch ? '已开启' : '已关闭'"></div>
+              <div class="font-semibold" style="color: var(--text)">已开启</div>
             </div>
             <div class="section-block">
               <div class="text-xs mb-1" style="color: var(--text-secondary)">自动检查定时</div>
@@ -1962,17 +1961,6 @@
               </button>
 
               <div class="section-block space-y-4">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <div class="font-medium" style="color: var(--text)">自动获取远程默认分支</div>
-                    <div class="text-xs" style="color: var(--text-secondary)">未填写 Commit 分支时，自动读取远程仓库默认分支</div>
-                  </div>
-                  <label class="toggle-switch">
-                    <input type="checkbox" x-model="gitAutoFetchDefaultBranch">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-
                 <div class="relative" :class="gitRenderModeDropdownOpen ? 'z-20' : 'z-10'"
                   @click.outside="gitRenderModeDropdownOpen = false">
                   <label class="block text-sm mb-1" style="color: var(--text-secondary)">默认推送类型</label>
@@ -2242,7 +2230,7 @@
                             Commit 检测：<span x-text="repo.commitEnabled !== false ? '已开启' : '已关闭'"></span>
                           </div>
                           <div class="text-xs" style="color: var(--text-secondary)">
-                            Commit 分支：<span x-text="repo.commitEnabled !== false ? (repo.commitBranch || (gitAutoFetchDefaultBranch ? '自动获取' : '未设置')) : '未启用'"></span>
+                            Commit 分支：<span x-text="repo.commitEnabled !== false ? (repo.commitBranch || '自动获取') : '未启用'"></span>
                           </div>
                           <div class="text-xs" style="color: var(--text-secondary)">
                             Release 检测：<span x-text="repo.releaseEnabled ? '已开启' : '已关闭'"></span>
@@ -2347,7 +2335,7 @@
                     <label class="block text-sm mb-1 text-slate-500">Commit 检测分支</label>
                     <input type="text" x-model="gitRepoForm.commitBranch" class="input w-full"
                       :disabled="!gitRepoForm.commitEnabled"
-                      :placeholder="gitRepoForm.commitEnabled ? (gitAutoFetchDefaultBranch ? '留空则自动获取远程默认分支' : '例如：main') : '关闭后无需配置'">
+                      :placeholder="gitRepoForm.commitEnabled ? '留空则自动获取远程默认分支' : '关闭后无需配置'">
                   </div>
                 </div>
                 <div class="section-block space-y-3">
@@ -3170,7 +3158,6 @@
         pluginSources: [],
         gitProviders: [],
         gitPushConfigs: [],
-        gitAutoFetchDefaultBranch: true,
         gitRenderMode: 'text',
         gitEnableSchedule: true,
         gitCheckInterval: 30,
@@ -3287,7 +3274,6 @@
         gitSearch: '',
         gitProviders: [],
         gitPushConfigs: [],
-        gitAutoFetchDefaultBranch: true,
         gitRenderMode: 'text',
         gitScheduleEnabled: true,
         gitCheckInterval: 30,
@@ -5008,7 +4994,6 @@
 
             this.gitProviders = normalized;
             this.gitPushConfigs = data.gitPushConfigs || [];
-            this.gitAutoFetchDefaultBranch = data.gitAutoFetchDefaultBranch !== false;
             this.gitRenderMode = data.gitRenderMode || 'text';
             this.gitScheduleEnabled = data.gitEnableSchedule !== false;
             this.gitCheckInterval = Number(data.gitCheckInterval || 30);
@@ -5412,7 +5397,6 @@
 
             await this.api('/git-config', 'POST', {
               gitProviders: cleanedProviders,
-              gitAutoFetchDefaultBranch: this.gitAutoFetchDefaultBranch,
               gitRenderMode: this.gitRenderMode,
               gitEnableSchedule: this.gitScheduleEnabled,
               gitCheckInterval: Math.max(Number(this.gitCheckInterval) || 1, 1),

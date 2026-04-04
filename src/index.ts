@@ -959,7 +959,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
                 data: {
                     gitProviders: config.gitProviders || DEFAULT_CONFIG.gitProviders || [],
                     gitPushConfigs: config.gitPushConfigs || [],
-                    gitAutoFetchDefaultBranch: config.gitAutoFetchDefaultBranch !== false,
+                    gitAutoFetchDefaultBranch: true,
                     gitRenderMode: config.gitRenderMode || 'text',
                     gitEnableSchedule: config.gitEnableSchedule !== false,
                     gitCheckInterval: config.gitCheckInterval || DEFAULT_CONFIG.gitCheckInterval,
@@ -979,9 +979,6 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             const prevGitCheckInterval = pluginState.config.gitCheckInterval;
 
             if (body?.gitProviders !== undefined) pluginState.config.gitProviders = body.gitProviders;
-            if (body?.gitAutoFetchDefaultBranch !== undefined) {
-                pluginState.config.gitAutoFetchDefaultBranch = Boolean(body.gitAutoFetchDefaultBranch);
-            }
             if (body?.gitRenderMode !== undefined) {
                 pluginState.config.gitRenderMode = body.gitRenderMode;
             }
