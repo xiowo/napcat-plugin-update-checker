@@ -149,11 +149,15 @@ function joinUrl(base: string, relative: string): string {
 
 interface GitRequestDebugMeta {
     repo: string;
+    provider: GitProviderName;
+    requestType: 'commits' | 'releases' | 'default-branch';
     branch?: string;
 }
 
-function buildDebugLine(meta: GitRequestDebugMeta, elapsed: number): string {
-    return `[Git检测] ${meta.repo} 分支=${meta.branch || '-'} 用时=${elapsed}ms`;
+function buildGitLogLine(meta: GitRequestDebugMeta, elapsed: number, status?: number): string {
+    const branchText = meta.branch || '-';
+    const statusText = typeof status === 'number' ? ` 状态=${status}` : '';
+    return `[Git请求] [${meta.provider}] ${meta.repo} 类型=${meta.requestType} 分支=${branchText}${statusText} 用时=${elapsed}ms`;
 }
 
 const GIT_API_TIMEOUT_MS = 15000;
@@ -168,25 +172,23 @@ async function fetchJson(url: string, headers: Record<string, string>, meta: Git
         const elapsed = Date.now() - startedAt;
 
         if (!res.ok) {
-            pluginState.logger.warn(`Git API 请求失败: ${buildDebugLine(meta, elapsed)}`);
-            pluginState.logger.debug(buildDebugLine(meta, elapsed));
+            pluginState.logger.warn(`Git API 请求失败: ${buildGitLogLine(meta, elapsed, res.status)}`);
             return null;
         }
 
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-            pluginState.logger.warn(`Git API 响应非 JSON: ${buildDebugLine(meta, elapsed)}`);
-            pluginState.logger.debug(buildDebugLine(meta, elapsed));
+            pluginState.logger.warn(`Git API 响应非 JSON: ${buildGitLogLine(meta, elapsed, res.status)}`);
             return null;
         }
 
         const data = await res.json();
-        pluginState.logger.debug(buildDebugLine(meta, elapsed));
+        pluginState.logger.info(`Git API 请求成功: ${buildGitLogLine(meta, elapsed, res.status)}`);
         return data;
     } catch (e) {
         const elapsed = Date.now() - startedAt;
-        pluginState.logger.warn(`Git API 请求异常: ${buildDebugLine(meta, elapsed)}`, e);
-        pluginState.logger.debug(buildDebugLine(meta, elapsed));
+        const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        pluginState.logger.warn(`Git API 请求异常: ${buildGitLogLine(meta, elapsed)} 错误=${errMsg}`, e);
         return null;
     }
 }
@@ -236,6 +238,8 @@ export async function getRepositoryData(
 
     return await fetchJson(url.toString(), headers, {
         repo,
+        provider,
+        requestType: type,
         branch: branchOrSha || (type === 'releases' ? 'release' : '')
     });
 }
@@ -255,6 +259,8 @@ export async function getDefaultBranch(
 
     const data = await fetchJson(url, headers, {
         repo,
+        provider,
+        requestType: 'default-branch',
         branch: 'default'
     });
     if (!data) return null;
