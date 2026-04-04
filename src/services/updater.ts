@@ -249,18 +249,11 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
 
     const configuredSources = pluginState.config.pluginSources || [];
     const enabledSources = configuredSources.filter(s => s.enabled);
-
-    const fallbackCommunitySource = {
-        name: '社区插件库（回退）',
-        url: 'https://raw.githubusercontent.com/HolyFoxTeam/napcat-plugin-community-index/refs/heads/main/plugins.v4.json',
-        enabled: true,
-        requestHeaders: {},
-        downloadHeaders: {},
-    };
-    const sources = enabledSources.length > 0 ? enabledSources : [fallbackCommunitySource];
+    const sources = enabledSources;
 
     if (enabledSources.length === 0) {
-        pluginState.logger.warn('未启用任何插件市场源，已自动回退到社区源');
+        pluginState.logger.warn('未启用任何插件市场源，已跳过商店索引拉取');
+        return new Map<string, Map<string, StorePlugin>>();
     }
 
     const sourceMap = new Map<string, Map<string, StorePlugin>>();
@@ -915,9 +908,12 @@ function downloadMirrorLabel(url: string): string {
 export async function pingRawMirrors(): Promise<MirrorPingResult[]> {
     const mirrorsToTest = pluginState.config.rawMirrors || GITHUB_RAW_MIRRORS;
     const enabledSources = pluginState.config.pluginSources?.filter(s => s.enabled) || [];
-    const source = enabledSources.length > 0
-        ? enabledSources[0].url
-        : 'https://raw.githubusercontent.com/HolyFoxTeam/napcat-plugin-community-index/refs/heads/main/plugins.v4.json';
+    if (enabledSources.length === 0) {
+        pluginState.logger.warn('未启用任何插件市场源，已跳过 Raw 镜像测速');
+        return [];
+    }
+
+    const source = enabledSources[0].url;
     const results = await Promise.all(mirrorsToTest.map(async (mirror) => {
         const url = (mirror && mirror !== 'direct' && mirror !== 'https://raw.githubusercontent.com') ? `${mirror}${source}` : source;
         const start = Date.now();
