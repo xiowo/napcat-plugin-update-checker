@@ -80,6 +80,7 @@ interface StorePlugin {
     description?: string;
     author?: string;
     source?: string;
+    changelog?: string;
 }
 
 interface StoreStatsItem {
@@ -87,6 +88,7 @@ interface StoreStatsItem {
     updateTime?: string;
     downloadUrl?: string;
     downloads?: number;
+    changelog?: string;
 }
 
 interface GitReleaseRepoRef {
@@ -546,6 +548,9 @@ async function fetchStoreIndexBySource(): Promise<Map<string, Map<string, StoreP
                             description: p.description,
                             author: p.author,
                             source: sourceKey,
+                            changelog: typeof stat.changelog === 'string'
+                                ? stat.changelog
+                                : (typeof p.changelog === 'string' ? p.changelog : ''),
                         });
                     }
                 }
@@ -712,7 +717,7 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
                 currentVersion: plugin.currentVersion,
                 latestVersion: storeInfo.version,
                 downloadUrl: storeInfo.downloadUrl,
-                changelog: '',
+                changelog: storeInfo.changelog || '',
                 publishedAt: '',
                 source: storeInfo.source,
             };
@@ -844,7 +849,7 @@ export async function checkSinglePlugin(pluginName: string): Promise<UpdateInfo 
             currentVersion,
             latestVersion: storeInfo.version,
             downloadUrl: storeInfo.downloadUrl,
-            changelog: '',
+            changelog: storeInfo.changelog || '',
             publishedAt: '',
             source: storeInfo.source,
         };

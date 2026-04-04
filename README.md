@@ -107,7 +107,7 @@
 - `statsUrl` **不是必须**，只是可选的外部增强数据引用。
 - `plugins[]` 中可直接写用于更新判断的核心字段：`id + version + downloadUrl`。
 - 若配置了 `statsUrl`，会按 `plugin.id` 合并，且 `statsUrl` 中同名字段优先级更高（覆盖主索引）。
-- 当前实现里，`downloads / updateTime` 属于扩展统计字段，虽然可以直接放在plugins[] 中，但是仍建议放在 `statsUrl` 对应文件中。
+- 当前实现里，`downloads / updateTime / changelog` 属于扩展字段，虽然可以直接放在 `plugins[]` 中，但是仍建议放在 `statsUrl` 对应文件中。
 
 ### 顶层字段
 
@@ -126,6 +126,7 @@
 | `downloadUrl` | `string` | 是* | 插件下载地址（可被 `statsUrl` 同名项覆盖） |
 | `description` | `string` | 否 | 插件描述 |
 | `author` | `string` | 否 | 插件作者 |
+| `changelog` | `string` | 否 | 更新日志（可被 `statsUrl` 同名项覆盖） |
 
 > `version` 与 `downloadUrl` 在最终生效数据中必须存在：  
 > - 可直接写在 `plugins[]` 中；  
@@ -141,7 +142,8 @@
     "version": "1.2.4",
     "downloadUrl": "https://github.com/owner/repo/releases/download/v1.2.4/example-plugin.zip",
     "downloads": 1234,
-    "updateTime": "2026-01-01T00:00:00.000Z"
+    "updateTime": "2026-01-01T00:00:00.000Z",
+    "changelog": "- 修复兼容性问题\n- 优化性能\n- 新增配置项"
   }
 }
 ```

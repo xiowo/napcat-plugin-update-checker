@@ -100,6 +100,26 @@ function buildSingleNotifyText(update: UpdateInfo, index: number | null): string
     const lines: string[] = [];
     lines.push(`📦 ${index ? `[#${index}] ` : ''}${update.displayName}`);
     lines.push(`   ${update.currentVersion} → ${update.latestVersion}`);
+
+    const changelog = String(update.changelog || '').trim();
+    if (changelog) {
+        const changelogLines = changelog
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(Boolean);
+
+        if (changelogLines.length > 0) {
+            lines.push('   更新日志：');
+            for (const line of changelogLines.slice(0, 8)) {
+                const normalized = line.replace(/^[\-*•\s]+/, '').trim();
+                lines.push(`   - ${normalized || line}`);
+            }
+            if (changelogLines.length > 8) {
+                lines.push('   - ...');
+            }
+        }
+    }
+
     if (update.publishedAt) {
         lines.push(`   发布于 ${new Date(update.publishedAt).toLocaleString('zh-CN')}`);
     }
