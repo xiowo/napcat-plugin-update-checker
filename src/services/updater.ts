@@ -8,9 +8,10 @@ import path from 'path';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
-import type { PluginInfo, UpdateInfo, MirrorPingResult, StoreMeta } from '../types';
+import type { PluginInfo, UpdateInfo, MirrorPingResult, StoreMeta, GitPushConfig, GitProviderName } from '../types';
 import { pluginState } from '../core/state';
 import { refreshRegistryWithStoreUpdates, syncPluginNumbering } from './update-registry';
+import { getRepositoryData } from './git-api';
 
 // 插件商店索引源将从 pluginState.config.pluginSources 动态读取
 
@@ -88,9 +89,234 @@ interface StoreStatsItem {
     downloads?: number;
 }
 
+interface GitReleaseRepoRef {
+    id?: string;
+    provider: GitProviderName;
+    repoPath: string;
+}
+
+const AUTO_GIT_PUSH_CONFIG_ID = 'plugin-git-auto-default';
+
 export interface InstallPluginResult {
     ok: boolean;
     message: string;
+}
+
+function normalizeRepoPath(repoPath: string): string {
+    return String(repoPath || '')
+        .trim()
+        .replace(/\.git$/i, '')
+        .replace(/^\/+/, '')
+        .toLowerCase();
+}
+
+function parseRepoPathFromUrl(rawUrl?: string): string {
+    const text = String(rawUrl || '').trim();
+    if (!text) return '';
+
+    let normalized = text.replace(/^git\+/i, '');
+    const scpMatch = normalized.match(/^git@([^:\/]+):(.+)$/i);
+    if (scpMatch) {
+        normalized = `https://${scpMatch[1]}/${scpMatch[2]}`;
+    }
+
+    try {
+        const url = new URL(normalized);
+        const parts = (url.pathname || '').split('/').filter(Boolean);
+        if (parts.length >= 2) {
+            return normalizeRepoPath(`${parts[0]}/${parts[1]}`);
+        }
+    } catch {
+        const m = normalized.match(/^(?:https?:\/\/|ssh:\/\/)?[^/:]+[/:]([^/]+)\/([^/?#]+)(?:[/?#].*)?$/i);
+        if (m) {
+            return normalizeRepoPath(`${m[1]}/${m[2]}`);
+        }
+    }
+
+    return '';
+}
+
+function extractRepositoryUrlFromPackage(repository: any): string {
+    if (!repository) return '';
+    if (typeof repository === 'string') return repository;
+    if (typeof repository.url === 'string') return repository.url;
+    return '';
+}
+
+function getInstalledPluginRepoPathMap(): Map<string, string> {
+    const result = new Map<string, string>();
+    const pm = pluginState.pluginManager;
+    if (!pm) return result;
+
+    const all = pm.getAllPlugins?.() || [];
+    for (const p of all) {
+        const pluginName = String(p?.packageJson?.name || p?.id || p?.fileId || '').trim();
+        if (!pluginName) continue;
+
+        const repoPath = parseRepoPathFromUrl(extractRepositoryUrlFromPackage(p?.packageJson?.repository))
+            || parseRepoPathFromUrl(p?.packageJson?.homepage || '')
+            || parseRepoPathFromUrl(p?.homepage || '');
+
+        if (repoPath) {
+            result.set(pluginName, repoPath);
+        }
+    }
+
+    pluginState.logger.info(`[Git检测] 已安装插件可解析仓库数量: ${result.size}`);
+    return result;
+}
+
+function normalizeGitPushReposForRelease(config: GitPushConfig): Array<{ id: string; provider: GitProviderName; owner: string; repo: string; releaseEnabled: boolean }> {
+    if (Array.isArray(config?.repos) && config.repos.length > 0) {
+        return config.repos
+            .filter(item => item && item.provider && item.owner && item.repo)
+            .map(item => ({
+                id: String(item.id || `${item.provider}-${item.owner}-${item.repo}`),
+                provider: item.provider,
+                owner: String(item.owner || '').trim(),
+                repo: String(item.repo || '').trim(),
+                releaseEnabled: item.releaseEnabled === true,
+            }));
+    }
+
+    if (config?.provider && config?.owner && config?.repo) {
+        return [{
+            id: String(config.id || `${config.provider}-${config.owner}-${config.repo}`),
+            provider: config.provider,
+            owner: String(config.owner || '').trim(),
+            repo: String(config.repo || '').trim(),
+            releaseEnabled: false,
+        }];
+    }
+
+    return [];
+}
+
+function getGitReleaseRepoMap(): Map<string, GitReleaseRepoRef> {
+    const out = new Map<string, GitReleaseRepoRef>();
+    const configs = Array.isArray(pluginState.config.gitPushConfigs) ? pluginState.config.gitPushConfigs : [];
+    const autoConfig = configs.find(item => String(item?.id || '').trim() === AUTO_GIT_PUSH_CONFIG_ID);
+    if (!autoConfig) {
+        pluginState.logger.info(`[Git检测] 未找到自动检测配置: ${AUTO_GIT_PUSH_CONFIG_ID}`);
+        return out;
+    }
+
+    const repos = normalizeGitPushReposForRelease(autoConfig);
+    for (const repo of repos) {
+        // 自动 Git 检测列表下的仓库默认开启 Release 检测，不再依赖 releaseEnabled 标记
+        const repoPath = `${repo.owner}/${repo.repo}`;
+        const key = normalizeRepoPath(repoPath);
+        if (!key || out.has(key)) continue;
+
+        out.set(key, {
+            id: String(repo.id || ''),
+            provider: repo.provider,
+            repoPath,
+        });
+    }
+
+    pluginState.logger.info(`[Git检测] 自动检测仓库数量: ${out.size}`);
+    return out;
+}
+
+function getGitProviderToken(provider: GitProviderName): string {
+    const providerText = String(provider || '').trim();
+    if (!providerText) return '';
+
+    const list = pluginState.config.gitProviders || [];
+    const exact = list.find(item => String(item?.provider || '').trim() === providerText);
+    if (exact?.token) return String(exact.token || '');
+
+    const lower = providerText.toLowerCase();
+    const hit = list.find(item => String(item?.provider || '').trim().toLowerCase() === lower);
+    return String(hit?.token || '');
+}
+
+function findGitReleaseRepoForPlugin(
+    plugin: PluginInfo,
+    gitReleaseRepoMap: Map<string, GitReleaseRepoRef>
+): GitReleaseRepoRef | null {
+    // 仅按自动列表 repo.id 匹配（不再依赖已安装插件 repository/homepage）
+    const rawName = String(plugin.name || '').trim().toLowerCase();
+    if (!rawName) return null;
+    const slugName = rawName.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const exactAutoId = `plugin-auto-${slugName || rawName}`;
+
+    for (const repo of gitReleaseRepoMap.values()) {
+        const rid = String(repo.id || '').trim().toLowerCase();
+        if (!rid) continue;
+
+        if (rid === exactAutoId || rid === rawName || rid === slugName) {
+            pluginState.logger.info(`[Git检测] ${plugin.name} 通过 repo.id 命中自动检测仓库: ${rid} -> ${repo.repoPath}`);
+            return repo;
+        }
+    }
+
+    return null;
+}
+
+function isGitReleaseEnabledForPlugin(
+    plugin: PluginInfo,
+    gitReleaseRepoMap: Map<string, GitReleaseRepoRef>
+): boolean {
+    return Boolean(findGitReleaseRepoForPlugin(plugin, gitReleaseRepoMap));
+}
+
+async function checkGitReleaseUpdateForPlugin(
+    plugin: PluginInfo,
+    gitReleaseRepoMap: Map<string, GitReleaseRepoRef>
+): Promise<UpdateInfo | null> {
+    const hit = findGitReleaseRepoForPlugin(plugin, gitReleaseRepoMap);
+    if (!hit) {
+        pluginState.logger.info(`[Git检测] ${plugin.name} 未命中 repo.id 绑定，跳过 Git 检测`);
+        return null;
+    }
+
+    const token = getGitProviderToken(hit.provider);
+    pluginState.logger.info(`[Git检测] 开始请求 Release: ${plugin.name} -> ${hit.provider} ${hit.repoPath}`);
+    const releaseData = await getRepositoryData(hit.repoPath, hit.provider, 'releases', token);
+    const release = Array.isArray(releaseData) ? releaseData[0] : releaseData;
+    if (!release) {
+        pluginState.logger.warn(`[Git检测] Release API 未返回有效数据: ${plugin.name} -> ${hit.provider} ${hit.repoPath}`);
+        return null;
+    }
+
+    const latestVersion = String(release?.tag_name || release?.name || '').trim();
+    if (!latestVersion) {
+        pluginState.logger.warn(`[Git检测] Release 缺少版本标识(tag_name/name): ${plugin.name} -> ${hit.provider} ${hit.repoPath}`);
+        return null;
+    }
+    if (!isNewer(plugin.currentVersion, latestVersion)) {
+        pluginState.logger.info(`[Git检测] ${plugin.name} 无新版本: ${plugin.currentVersion} -> ${latestVersion}`);
+        return null;
+    }
+
+    const assets = Array.isArray(release?.assets) ? release.assets : [];
+    const zipAsset = assets.find((asset: any) => {
+        const browserUrl = String(asset?.browser_download_url || '').trim();
+        const directUrl = String(asset?.url || '').trim();
+        const name = String(asset?.name || '').trim().toLowerCase();
+        const target = browserUrl || directUrl;
+        return Boolean(target) && (name.endsWith('.zip') || target.toLowerCase().includes('.zip'));
+    });
+    const downloadUrl = String(
+        zipAsset?.browser_download_url
+        || zipAsset?.url
+        || release?.zipball_url
+        || ''
+    ).trim();
+
+    pluginState.logger.info(`[Git检测] ${plugin.name} 发现新版本: ${plugin.currentVersion} -> ${latestVersion}`);
+    return {
+        pluginName: plugin.name,
+        displayName: plugin.displayName,
+        currentVersion: plugin.currentVersion,
+        latestVersion,
+        downloadUrl,
+        changelog: '',
+        publishedAt: String(release?.published_at || release?.created_at || ''),
+        source: `${String(hit.provider || '')}-release`,
+    };
 }
 
 /** 比较版本号，返回 true 表示 remote > local */
@@ -398,8 +624,6 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
     pluginState.logger.info('开始检查插件更新...');
 
     const installed = getInstalledFromManager();
-    const sourceStoreMap = await fetchStoreIndexBySource();
-    const mergedStoreMap = buildMergedStoreIndex(sourceStoreMap);
 
     // 清理 autoUpdatePlugins 中已不存在的插件
     const installedNames = new Set(installed.map(p => p.name));
@@ -412,17 +636,64 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
         }
     }
 
-    if (sourceStoreMap.size === 0) {
-        pluginState.logger.warn('商店索引为空，无法检查更新（可能是网络问题）');
-        return [];
+    const ignored = new Set(pluginState.config.ignoredPlugins);
+    const disableStoreCheck = new Set(pluginState.config.disableStoreCheckPlugins || []);
+    const updates: UpdateInfo[] = [];
+    const actionableUpdatesByInstalledName = new Map<string, UpdateInfo>();
+    const installedRepoPathMap = getInstalledPluginRepoPathMap();
+    const gitReleaseRepoMap = getGitReleaseRepoMap();
+
+    pluginState.logger.info(`[Git检测] 当前已安装插件总数: ${installed.length}`);
+
+    const needsStoreCheck = installed.some(plugin => {
+        if (ignored.has(plugin.name)) return false;
+        if (disableStoreCheck.has(plugin.name)) return false;
+        const gitEnabled = isGitReleaseEnabledForPlugin(plugin, gitReleaseRepoMap);
+        return !gitEnabled;
+    });
+    pluginState.logger.info(`[Git检测] 是否需要商店检测: ${needsStoreCheck ? '是' : '否'}`);
+
+    let sourceStoreMap = new Map<string, Map<string, StorePlugin>>();
+    let mergedStoreMap = new Map<string, StorePlugin>();
+
+    if (needsStoreCheck) {
+        sourceStoreMap = await fetchStoreIndexBySource();
+        mergedStoreMap = buildMergedStoreIndex(sourceStoreMap);
+
+        if (sourceStoreMap.size === 0) {
+            pluginState.logger.warn('商店索引为空，本次仅执行 Git 检测');
+        }
     }
 
-    const ignored = new Set(pluginState.config.ignoredPlugins);
-    const updates: UpdateInfo[] = [];
-    const storeUpdatesByInstalledName = new Map<string, UpdateInfo>();
-
     for (const plugin of installed) {
-        if (ignored.has(plugin.name)) continue;
+        if (ignored.has(plugin.name)) {
+            pluginState.logger.info(`[Git检测] ${plugin.name} 在 ignoredPlugins 中，跳过`);
+            continue;
+        }
+
+        const gitEnabled = isGitReleaseEnabledForPlugin(plugin, gitReleaseRepoMap);
+
+        // Git 检测与商店检测分离：只有开启“使用 Git 检测更新”才走 Git
+        if (gitEnabled) {
+            pluginState.logger.info(`[Git检测] ${plugin.name} 命中自动检测仓库，执行 Git Release 检测`);
+            const gitUpdate = await checkGitReleaseUpdateForPlugin(plugin, gitReleaseRepoMap);
+            if (gitUpdate) {
+                updates.push(gitUpdate);
+                if (gitUpdate.downloadUrl) {
+                    actionableUpdatesByInstalledName.set(plugin.name, gitUpdate);
+                }
+            }
+            continue;
+        }
+
+        const parsedRepo = installedRepoPathMap.get(plugin.name) || '';
+        pluginState.logger.info(`[Git检测] ${plugin.name} 未命中自动检测仓库（repo=${parsedRepo || '未解析'}）`);
+
+        // 禁用商店源检测且未开启 Git 检测时，跳过
+        if (disableStoreCheck.has(plugin.name)) {
+            pluginState.logger.info(`[Git检测] ${plugin.name} 在 disableStoreCheckPlugins 中，且未开启 Git，跳过`);
+            continue;
+        }
 
         // 有商店元数据时：只按对应源检查，不跨源比版本
         const targetStoreMap = plugin.storeSource
@@ -446,11 +717,11 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
                 source: storeInfo.source,
             };
             updates.push(updateItem);
-            storeUpdatesByInstalledName.set(plugin.name, updateItem);
+            actionableUpdatesByInstalledName.set(plugin.name, updateItem);
         }
     }
 
-    refreshRegistryWithStoreUpdates(installed, storeUpdatesByInstalledName);
+    refreshRegistryWithStoreUpdates(installed, actionableUpdatesByInstalledName);
 
     pluginState.availableUpdates = updates;
     pluginState.lastCheckTime = Date.now();
@@ -485,6 +756,60 @@ export async function checkSinglePlugin(pluginName: string): Promise<UpdateInfo 
     if (!entry) { pluginState.logger.warn(`未找到插件: ${pluginName} (内部id: ${internalId})`); return null; }
 
     const currentVersion = entry.version || '0.0.0';
+    const ignored = new Set(pluginState.config.ignoredPlugins);
+    const disableStoreCheck = new Set(pluginState.config.disableStoreCheckPlugins || []);
+    if (ignored.has(pluginName)) {
+        pluginState.logger.info(`${pluginName} 在黑名单中，已跳过更新检测`);
+        return null;
+    }
+
+    const installedRepoPathMap = getInstalledPluginRepoPathMap();
+    const gitReleaseRepoMap = getGitReleaseRepoMap();
+
+    const pluginForGit: PluginInfo = installed || {
+        name: pluginName,
+        internalId,
+        displayName: entry.packageJson?.plugin || entry.name || pluginName,
+        currentVersion,
+        status: !entry.enable ? 'disabled' : entry.loaded ? 'active' : 'stopped',
+        homepage: entry.packageJson?.homepage || '',
+    };
+
+    const gitEnabled = isGitReleaseEnabledForPlugin(pluginForGit, gitReleaseRepoMap);
+
+    // Git 检测与商店检测分离：开启 Git 检测时仅走 Git
+    if (gitEnabled) {
+        const gitUpdate = await checkGitReleaseUpdateForPlugin(pluginForGit, gitReleaseRepoMap);
+        if (gitUpdate) {
+            pluginState.availableUpdates = pluginState.availableUpdates.filter(
+                u => u.pluginName !== pluginName && u.pluginName !== gitUpdate.pluginName
+            );
+            pluginState.availableUpdates.push(gitUpdate);
+
+            const installedList = getInstalledFromManager();
+            const actionableMap = new Map<string, UpdateInfo>();
+            if (gitUpdate.downloadUrl) {
+                actionableMap.set(pluginName, gitUpdate);
+                refreshRegistryWithStoreUpdates(installedList, actionableMap);
+            } else {
+                syncPluginNumbering(installedList);
+            }
+
+            pluginState.logger.info(`${pluginName}: ${currentVersion} → ${gitUpdate.latestVersion} (Git Release, auto-config)`);
+            return gitUpdate;
+        }
+
+        syncPluginNumbering(getInstalledFromManager());
+        pluginState.logger.info(`${pluginName} 已开启 Git 检测，但 Release 未发现更新`);
+        return null;
+    }
+
+    if (disableStoreCheck.has(pluginName)) {
+        syncPluginNumbering(getInstalledFromManager());
+        pluginState.logger.info(`${pluginName} 已禁用商店源检测，且未开启 Git 检测`);
+        return null;
+    }
+
     const sourceStoreMap = await fetchStoreIndexBySource();
     const mergedStoreMap = buildMergedStoreIndex(sourceStoreMap);
 

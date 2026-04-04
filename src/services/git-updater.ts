@@ -690,6 +690,80 @@ function buildRepoBaseIdentity(repo: { provider: GitProviderName | string; owner
     ].join('|');
 }
 
+function parseGitRepoIdentityFromUrl(rawUrl: string): { owner: string; repo: string } | null {
+    const text = String(rawUrl || '').trim();
+    if (!text) return null;
+
+    let normalized = text.replace(/^git\+/i, '');
+    const scpMatch = normalized.match(/^git@([^:\/]+):(.+)$/i);
+    if (scpMatch) {
+        normalized = `https://${scpMatch[1]}/${scpMatch[2]}`;
+    }
+
+    try {
+        const u = new URL(normalized);
+        const parts = String(u.pathname || '').split('/').filter(Boolean);
+        if (parts.length < 2) return null;
+        const owner = String(parts[0] || '').trim();
+        const repo = String(parts[1] || '').replace(/\.git$/i, '').trim();
+        if (!owner || !repo) return null;
+        return { owner, repo };
+    } catch {
+        return null;
+    }
+}
+
+function extractRepositoryUrl(repository: any): string {
+    if (!repository) return '';
+    if (typeof repository === 'string') return repository;
+    if (typeof repository?.url === 'string') return repository.url;
+    return '';
+}
+
+function buildIgnoredRepoIdentitySet(): Set<string> {
+    const ignored = new Set((pluginState.config.ignoredPlugins || []).map(v => String(v || '').trim()).filter(Boolean));
+    if (ignored.size === 0) return new Set<string>();
+
+    const set = new Set<string>();
+    const pm = pluginState.pluginManager;
+    if (!pm) return set;
+
+    const installed = pm.getAllPlugins?.() || [];
+    for (const plugin of installed) {
+        const pluginName = String(plugin?.packageJson?.name || plugin?.id || plugin?.fileId || '').trim();
+        if (!pluginName || !ignored.has(pluginName)) continue;
+
+        const repoCandidates = [
+            extractRepositoryUrl(plugin?.packageJson?.repository),
+            String(plugin?.packageJson?.homepage || '').trim(),
+            String(plugin?.homepage || '').trim(),
+        ];
+
+        for (const candidate of repoCandidates) {
+            const parsed = parseGitRepoIdentityFromUrl(candidate);
+            if (!parsed) continue;
+
+            // 黑名单插件仓库在所有 provider 下都禁用 Git 检测
+            for (const provider of pluginState.config.gitProviders || []) {
+                set.add(buildRepoBaseIdentity({
+                    provider: String(provider?.provider || '').trim(),
+                    owner: parsed.owner,
+                    repo: parsed.repo
+                }));
+            }
+
+            // 兜底常见 provider
+            set.add(buildRepoBaseIdentity({ provider: 'GitHub', owner: parsed.owner, repo: parsed.repo }));
+            set.add(buildRepoBaseIdentity({ provider: 'Gitee', owner: parsed.owner, repo: parsed.repo }));
+            set.add(buildRepoBaseIdentity({ provider: 'Gitcode', owner: parsed.owner, repo: parsed.repo }));
+            set.add(buildRepoBaseIdentity({ provider: 'Gitea', owner: parsed.owner, repo: parsed.repo }));
+            set.add(buildRepoBaseIdentity({ provider: 'CNB', owner: parsed.owner, repo: parsed.repo }));
+        }
+    }
+
+    return set;
+}
+
 function buildUpdateTextBlock(item: GitUpdateItem): string {
     const lines: string[] = [
         `📦 ${providerEmoji(item.provider)}仓库更新通知`,
@@ -1064,6 +1138,7 @@ export async function runGitPushCheck(): Promise<{ skipped: boolean; updates: nu
         if (configs.length === 0) return { skipped: false, updates: 0 };
 
         const cache = loadCache();
+        const ignoredRepoIdentities = buildIgnoredRepoIdentitySet();
 
         // 仅对“启用中的推送列表”构建仓库集合，关闭列表不会触发任何 API 调用
         const configRepos = configs.map(config => {
@@ -1087,6 +1162,16 @@ export async function runGitPushCheck(): Promise<{ skipped: boolean; updates: nu
 
         const repoUpdatesMap = new Map<string, GitUpdateItem[]>();
         for (const [key, repo] of repoKeyToConfig.entries()) {
+            const repoIdentity = buildRepoBaseIdentity({
+                provider: repo.provider,
+                owner: repo.owner,
+                repo: repo.repo
+            });
+            if (ignoredRepoIdentities.has(repoIdentity)) {
+                repoUpdatesMap.set(key, []);
+                continue;
+            }
+
             const updates = await collectRepoUpdates(repo, cache);
             repoUpdatesMap.set(key, updates);
         }
@@ -1144,8 +1229,16 @@ export async function runGitPushDebugForConfig(
     }
 
     const cache = loadCache();
+    const ignoredRepoIdentities = buildIgnoredRepoIdentitySet();
     const allUpdates: GitUpdateItem[] = [];
     for (const repo of selectedRepos) {
+        const repoIdentity = buildRepoBaseIdentity({
+            provider: repo.provider,
+            owner: repo.owner,
+            repo: repo.repo
+        });
+        if (ignoredRepoIdentities.has(repoIdentity)) continue;
+
         const updates = await collectRepoUpdates(repo, cache, { forcePush: true });
         if (updates.length > 0) {
             allUpdates.push(...updates);
@@ -1174,6 +1267,7 @@ export async function runGitPushDebugForGroup(
     }
 
     const cache = loadCache();
+    const ignoredRepoIdentities = buildIgnoredRepoIdentitySet();
     let matched = 0;
     let updates = 0;
 
@@ -1203,6 +1297,16 @@ export async function runGitPushDebugForGroup(
 
     const repoUpdatesMap = new Map<string, GitUpdateItem[]>();
     for (const [key, repo] of repoKeyToConfig.entries()) {
+        const repoIdentity = buildRepoBaseIdentity({
+            provider: repo.provider,
+            owner: repo.owner,
+            repo: repo.repo
+        });
+        if (ignoredRepoIdentities.has(repoIdentity)) {
+            repoUpdatesMap.set(key, []);
+            continue;
+        }
+
         const repoUpdates = await collectRepoUpdates(repo, cache);
         repoUpdatesMap.set(key, repoUpdates);
     }

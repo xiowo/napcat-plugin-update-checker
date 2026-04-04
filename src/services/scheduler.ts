@@ -103,10 +103,6 @@ function buildSingleNotifyText(update: UpdateInfo, index: number | null): string
     if (update.publishedAt) {
         lines.push(`   发布于 ${new Date(update.publishedAt).toLocaleString('zh-CN')}`);
     }
-    if (update.changelog) {
-        const short = update.changelog.split('\n').slice(0, 3).join('\n   ');
-        lines.push(`   ${short}`);
-    }
     return lines.join('\n');
 }
 

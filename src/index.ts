@@ -178,6 +178,7 @@ export const plugin_on_config_change: PluginModule['plugin_on_config_change'] = 
 // ==================== WebUI API 端点 ====================
 
 const URL_ASCII_SAFE_REGEX = /^[A-Za-z0-9:/._~?#[\]@!$&'()*+,;=%-]+$/;
+const AUTO_GIT_PUSH_CONFIG_ID = 'plugin-git-auto-default';
 
 /** 校验镜像/URL */
 function isAsciiSafeUrl(value: string): boolean {
@@ -730,6 +731,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             if (body?.checkInterval !== undefined) pluginState.config.checkInterval = body.checkInterval;
             if (body?.autoUpdatePlugins !== undefined) pluginState.config.autoUpdatePlugins = body.autoUpdatePlugins;
             if (body?.ignoredPlugins !== undefined) pluginState.config.ignoredPlugins = body.ignoredPlugins;
+            if (body?.disableStoreCheckPlugins !== undefined) pluginState.config.disableStoreCheckPlugins = body.disableStoreCheckPlugins;
             if (body?.themePreset !== undefined) pluginState.config.themePreset = body.themePreset;
             if (body?.themeCustomColor !== undefined) pluginState.config.themeCustomColor = body.themeCustomColor;
             pluginState.saveConfig();
@@ -1020,7 +1022,23 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             const previousConfigs = Array.isArray(pluginState.config.gitPushConfigs)
                 ? pluginState.config.gitPushConfigs as GitPushConfig[]
                 : [];
-            const nextConfigs = body.gitPushConfigs as GitPushConfig[];
+            const nextConfigs = (body.gitPushConfigs as GitPushConfig[]).map((config) => {
+                if (!config || typeof config !== 'object') return config;
+
+                const isAutoGitPushConfig = String(config.id || '').trim() === AUTO_GIT_PUSH_CONFIG_ID;
+                if (!isAutoGitPushConfig) return config;
+
+                const repos = Array.isArray(config.repos) ? config.repos : [];
+                const forcedRepos = repos.map((repo) => ({
+                    ...repo,
+                    releaseEnabled: true,
+                }));
+
+                return {
+                    ...config,
+                    repos: forcedRepos
+                };
+            });
 
             for (const config of nextConfigs) {
                 const duplicatedRepo = getDuplicateRepoInPushConfig(config);

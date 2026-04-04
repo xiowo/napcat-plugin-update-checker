@@ -51,6 +51,8 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     else if (Array.isArray(raw.autoUpdatePlugins)) out.autoUpdatePlugins = raw.autoUpdatePlugins.map(String).filter(Boolean);
     if (typeof raw.ignoredPlugins === 'string') out.ignoredPlugins = raw.ignoredPlugins.split(',').map((s: string) => s.trim()).filter(Boolean);
     else if (Array.isArray(raw.ignoredPlugins)) out.ignoredPlugins = raw.ignoredPlugins.map(String).filter(Boolean);
+    if (typeof raw.disableStoreCheckPlugins === 'string') out.disableStoreCheckPlugins = raw.disableStoreCheckPlugins.split(',').map((s: string) => s.trim()).filter(Boolean);
+    else if (Array.isArray(raw.disableStoreCheckPlugins)) out.disableStoreCheckPlugins = raw.disableStoreCheckPlugins.map(String).filter(Boolean);
     if (typeof raw.selectedRawMirror === 'string') out.selectedRawMirror = raw.selectedRawMirror;
     if (typeof raw.selectedDownloadMirror === 'string') out.selectedDownloadMirror = raw.selectedDownloadMirror;
     if (Array.isArray(raw.rawMirrors)) out.rawMirrors = raw.rawMirrors.map(String);

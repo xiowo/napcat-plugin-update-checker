@@ -65,6 +65,11 @@ function nextAvailableIndex(used: Set<number>): number {
     return i;
 }
 
+function normalizeStoredUpdate(update?: UpdateInfo): UpdateInfo | undefined {
+    if (!update) return undefined;
+    return { ...update };
+}
+
 function normalizeRepoPath(repoPath: string): string {
     return String(repoPath || '')
         .trim()
@@ -220,7 +225,7 @@ export function refreshRegistryWithStoreUpdates(
             storeLatestVersion: storeLatest,
             gitLatestVersion: gitLatest,
             lastSource,
-            storeUpdate: update,
+            storeUpdate: normalizeStoredUpdate(update),
             updatedAt: Date.now()
         };
     });

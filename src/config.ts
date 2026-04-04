@@ -22,6 +22,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
     pushUpdateToMaster: true,
     autoUpdatePlugins: [],
     ignoredPlugins: [],
+    disableStoreCheckPlugins: [],
     // 镜像相关配置
     selectedRawMirror: '',
     selectedDownloadMirror: '',

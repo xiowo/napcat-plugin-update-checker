@@ -39,6 +39,8 @@ export interface PluginConfig {
     autoUpdatePlugins: string[];
     /** 忽略更新的插件列表 */
     ignoredPlugins: string[];
+    /** 仅禁用商店源检测的插件列表 */
+    disableStoreCheckPlugins: string[];
     /** 选中的 Raw 镜像 */
     selectedRawMirror: string;
     /** 选中的下载镜像 */

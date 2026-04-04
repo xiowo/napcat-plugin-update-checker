@@ -344,11 +344,19 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
                         await sendReply(ctx, event, '✅ 所有插件均为最新版本');
                     } else {
                         const indexedUpdates = getStoreUpdatesFromRegistry();
+                        const indexedByName = new Set(indexedUpdates.map(item => item.pluginName));
+                        const gitOnlyUpdates = updates.filter(u => !indexedByName.has(u.pluginName));
+
                         const lines = [
                             `[= 发现可更新插件 =]`,
-                            ...(indexedUpdates.length > 0
-                                ? indexedUpdates.map(item => `[#${item.index}] ${item.displayName}: ${item.update.currentVersion} → ${item.update.latestVersion}`)
-                                : updates.map(u => `${u.displayName}: ${u.currentVersion} → ${u.latestVersion}`)),
+                            ...(indexedUpdates.map(item => {
+                                const timeLine = item.update.publishedAt ? `\n   发布于 ${new Date(item.update.publishedAt).toLocaleString('zh-CN')}` : '';
+                                return `📦 [#${item.index}] ${item.displayName}\n   ${item.update.currentVersion} → ${item.update.latestVersion}${timeLine}`;
+                            })),
+                            ...(gitOnlyUpdates.map(u => {
+                                const timeLine = u.publishedAt ? `\n   发布于 ${new Date(u.publishedAt).toLocaleString('zh-CN')}` : '';
+                                return `[Git] ${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}${timeLine}`;
+                            })),
                             '',
                             `发送 "${prefix}全部" 执行更新`,
                             `发送 "${prefix}编号1" 指定更新对应编号插件`,
@@ -357,9 +365,16 @@ export async function handleMessage(ctx: NapCatPluginContext, event: OB11Message
 
                         if (updates.length >= 2) {
                             const { userId, nickname } = getForwardIdentity();
-                            const detailLines = indexedUpdates.length > 0
-                                ? indexedUpdates.map(item => `📦 [#${item.index}] ${item.displayName}\n   ${item.update.currentVersion} → ${item.update.latestVersion}`)
-                                : updates.map(u => `📦 ${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}`);
+                            const detailLines = [
+                                ...indexedUpdates.map(item => {
+                                    const timeLine = item.update.publishedAt ? `\n   发布于 ${new Date(item.update.publishedAt).toLocaleString('zh-CN')}` : '';
+                                    return `📦 [#${item.index}] ${item.displayName}\n   ${item.update.currentVersion} → ${item.update.latestVersion}${timeLine}`;
+                                }),
+                                ...gitOnlyUpdates.map(u => {
+                                    const timeLine = u.publishedAt ? `\n   发布于 ${new Date(u.publishedAt).toLocaleString('zh-CN')}` : '';
+                                    return `[Git] ${u.displayName}\n   ${u.currentVersion} → ${u.latestVersion}${timeLine}`;
+                                }),
+                            ];
                             const nodes: ForwardNode[] = [
                                 createForwardNode(userId, nickname, '🔄 插件更新提醒') as ForwardNode,
                                 ...detailLines.map(line => createForwardNode(userId, nickname, line) as ForwardNode),

@@ -2357,7 +2357,9 @@
                       <p class="text-xs mt-1" style="color: var(--text-secondary)">默认关闭，开启后才会检查 Release</p>
                     </div>
                     <label class="toggle-switch">
-                      <input type="checkbox" x-model="gitRepoForm.releaseEnabled">
+                      <input type="checkbox" x-model="gitRepoForm.releaseEnabled"
+                        :disabled="isEditingAutoGitPushRepo()"
+                        :title="isEditingAutoGitPushRepo() ? '自动推送列表已强制开启 Release 检测，不可修改' : ''">
                       <span class="toggle-slider"></span>
                     </label>
                   </div>
@@ -2365,8 +2367,8 @@
                   <div>
                     <label class="block text-sm mb-1 text-slate-500">Release 分支 / 标识</label>
                     <input type="text" x-model="gitRepoForm.releaseBranch" class="input w-full"
-                      :disabled="!gitRepoForm.releaseEnabled"
-                      :placeholder="gitRepoForm.releaseEnabled ? (gitRepoForm.commitEnabled ? '不填则使用提交配置的分支' : '留空自动获取') : '开启后可配置'">
+                      :disabled="!gitRepoForm.releaseEnabled || isEditingAutoGitPushRepo()"
+                      :placeholder="isEditingAutoGitPushRepo() ? '自动推送列表固定自动获取，不可修改' : (gitRepoForm.releaseEnabled ? (gitRepoForm.commitEnabled ? '不填则使用提交配置的分支' : '留空自动获取') : '开启后可配置')">
                     <p class="text-xs mt-1" style="color: var(--text-secondary)"
                       x-text="gitRepoForm.commitEnabled ? '开启后如果不填写，将自动使用 Commit 检测分支' : 'Commit 检测关闭时，留空将自动获取默认分支'">
                     </p>
@@ -3162,6 +3164,7 @@
         pushUpdateToMaster: true,
         autoUpdatePlugins: [],
         ignoredPlugins: [],
+        disableStoreCheckPlugins: [],
         selectedRawMirror: '',
         selectedDownloadMirror: '',
         pluginSources: [],
@@ -3991,7 +3994,8 @@
               notifyUsers: this.config.notifyUsers,
               pushUpdateToMaster: this.config.pushUpdateToMaster,
               autoUpdatePlugins: this.config.autoUpdatePlugins,
-              ignoredPlugins: this.config.ignoredPlugins
+              ignoredPlugins: this.config.ignoredPlugins,
+              disableStoreCheckPlugins: this.config.disableStoreCheckPlugins || []
             });
             // 保存成功后重置状态
             this.originalConfig = JSON.parse(JSON.stringify(this.config));
@@ -4948,6 +4952,9 @@
             nextConfig.notifyGroupsStr = (nextConfig.notifyGroups || []).join(', ');
             nextConfig.notifyUsersStr = (nextConfig.notifyUsers || []).join(', ');
             nextConfig.masterQQ = nextConfig.masterQQ || '';
+            nextConfig.disableStoreCheckPlugins = Array.isArray(nextConfig.disableStoreCheckPlugins)
+              ? nextConfig.disableStoreCheckPlugins
+              : [];
 
             if (keepLocalDraft) {
               Object.assign(nextConfig, localDraft);
@@ -5203,6 +5210,10 @@
           return id === this.AUTO_GIT_PUSH_CONFIG_ID || name === this.AUTO_GIT_PUSH_DEFAULT_NAME;
         },
 
+        isEditingAutoGitPushRepo() {
+          return this.isAutoGitPushConfig(this.gitForm);
+        },
+
         findAutoGitPushConfigIndex(list = null) {
           const arr = Array.isArray(list) ? list : (this.gitPushConfigs || []);
           return arr.findIndex(item => this.isAutoGitPushConfig(item));
@@ -5225,8 +5236,8 @@
               repo: push.repo,
               commitEnabled: push.commitEnabled !== false,
               commitBranch: push.commitBranch || '',
-              releaseEnabled: false,
-              releaseBranch: push.releaseBranch || ''
+              releaseEnabled: this.isAutoGitPushConfig(push) ? true : false,
+              releaseBranch: this.isAutoGitPushConfig(push) ? '' : (push.releaseBranch || '')
             }];
           }
           return [];
@@ -5270,6 +5281,11 @@
 
           if (!this.gitProviders.find(item => item.provider === this.gitRepoForm.provider)) {
             this.gitRepoForm.provider = this.gitProviders[0]?.provider || 'GitHub';
+          }
+
+          if (this.isEditingAutoGitPushRepo()) {
+            this.gitRepoForm.releaseEnabled = true;
+            this.gitRepoForm.releaseBranch = '';
           }
 
           this.showGitRepoModal = true;
@@ -5329,6 +5345,7 @@
             return;
           }
 
+          const forceReleaseEnabled = this.isEditingAutoGitPushRepo();
           const payload = {
             id: this.gitRepoForm.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
             provider: this.gitRepoForm.provider,
@@ -5337,8 +5354,8 @@
             repo: this.gitRepoForm.repo,
             commitEnabled: this.gitRepoForm.commitEnabled !== false,
             commitBranch: this.gitRepoForm.commitBranch || '',
-            releaseEnabled: this.gitRepoForm.releaseEnabled === true,
-            releaseBranch: this.gitRepoForm.releaseBranch || ''
+            releaseEnabled: forceReleaseEnabled ? true : this.gitRepoForm.releaseEnabled === true,
+            releaseBranch: forceReleaseEnabled ? '' : (this.gitRepoForm.releaseBranch || '')
           };
 
           const normalizeRepoKey = (repo) => [
@@ -5440,6 +5457,14 @@
               releaseBranch: item.releaseBranch || ''
             }))
           };
+
+          if (this.isAutoGitPushConfig(payload)) {
+            payload.repos = payload.repos.map(item => ({
+              ...item,
+              releaseEnabled: true,
+              releaseBranch: ''
+            }));
+          }
 
           const next = [...this.gitPushConfigs];
           if (this.gitEditingIndex !== null && this.gitEditingIndex >= 0) {
@@ -5763,18 +5788,35 @@
           };
         },
 
-        getAutoGitPushRepoMatch(installedPlugin) {
-          const repoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
-          const parsed = this.parseGitRepoInfoFromUrl(repoUrl);
-          if (!parsed) return null;
+        buildPluginAutoRepoId(pluginName) {
+          const safeName = String(pluginName || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9._-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          return `plugin-auto-${safeName || 'unknown'}`;
+        },
 
+        getAutoGitPushRepoMatch(installedPlugin) {
           const autoIndex = this.findAutoGitPushConfigIndex(this.gitPushConfigs || []);
           if (autoIndex < 0) return null;
 
           const autoPush = (this.gitPushConfigs || [])[autoIndex];
           const repos = this.getGitPushRepos(autoPush).map(repo => ({ ...repo }));
-          const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
 
+          // 优先按“插件绑定的稳定 repoId”匹配，避免依赖已安装插件的 repositoryUrl
+          const pluginRepoId = this.buildPluginAutoRepoId(installedPlugin?.name || '');
+          const repoIndexById = repos.findIndex(repo => String(repo?.id || '').trim() === pluginRepoId);
+          if (repoIndexById >= 0) {
+            return { autoIndex, repoIndex: repoIndexById, parsed: null };
+          }
+
+          // 回退：按 owner/repo 或 repoUrl 进行匹配（兼容旧数据）
+          const repoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
+          const parsed = this.parseGitRepoInfoFromUrl(repoUrl);
+          if (!parsed) return null;
+
+          const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
           const repoIndex = repos.findIndex(repo => {
             const repoPath = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
             const repoUrlText = String(repo.repoUrl || '').toLowerCase();
@@ -5798,7 +5840,7 @@
             && this.pluginSourceEditValue !== currentSource;
 
           const pluginName = this.pluginSourceEditTarget.name;
-          const currentDisableStoreCheck = this.config.ignoredPlugins.includes(pluginName);
+          const currentDisableStoreCheck = (this.config.disableStoreCheckPlugins || []).includes(pluginName);
           const storeCheckChanged = this.pluginSourceEditDisableStoreCheck !== currentDisableStoreCheck;
 
           const currentGitEnabled = this.hasGitPushRepoForPlugin(this.pluginSourceEditTarget);
@@ -5846,7 +5888,9 @@
           const currentGitMatch = this.getAutoGitPushRepoMatch(installedPlugin);
 
           this.pluginSourceEditUseGit = !!currentGitMatch;
-          this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
+          this.pluginSourceEditDisableStoreCheck = this.pluginSourceEditUseGit
+            ? true
+            : (this.config.disableStoreCheckPlugins || []).includes(installedPlugin.name);
 
           if (currentGitMatch && currentGitMatch.autoIndex >= 0) {
             const currentPush = this.gitPushConfigs[currentGitMatch.autoIndex];
@@ -5889,7 +5933,9 @@
         async savePluginSourceEdit() {
           if (!this.pluginSourceEditTarget) return;
 
-          if (!this.pluginSourceEditUseGit && this.pluginSourceEditDisableStoreCheck) {
+          if (this.pluginSourceEditUseGit) {
+            this.pluginSourceEditDisableStoreCheck = true;
+          } else if (this.pluginSourceEditDisableStoreCheck) {
             this.pluginSourceEditDisableStoreCheck = false;
           }
 
@@ -5990,26 +6036,31 @@
                   : parsed.provider;
 
                 const targetPath = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+                const pluginRepoId = this.buildPluginAutoRepoId(this.pluginSourceEditTarget?.name || '');
                 const newRepo = {
-                  id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+                  id: pluginRepoId,
                   provider: finalProvider,
                   repoUrl: parsed.repoUrl,
                   owner: parsed.owner,
                   repo: parsed.repo,
                   commitEnabled: false,
                   commitBranch: '',
-                  releaseEnabled: false,
+                  releaseEnabled: true,
                   releaseBranch: ''
                 };
 
-                const sameRepoIndex = repos.findIndex(repo => {
-                  const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
-                  return pathText === targetPath;
-                });
+                let sameRepoIndex = repos.findIndex(repo => String(repo?.id || '').trim() === pluginRepoId);
+                if (sameRepoIndex < 0) {
+                  sameRepoIndex = repos.findIndex(repo => {
+                    const pathText = `${repo.owner || ''}/${repo.repo || ''}`.toLowerCase();
+                    return pathText === targetPath;
+                  });
+                }
 
                 if (sameRepoIndex >= 0) {
                   repos[sameRepoIndex] = {
                     ...repos[sameRepoIndex],
+                    id: pluginRepoId,
                     provider: finalProvider,
                     repoUrl: parsed.repoUrl,
                     owner: parsed.owner,
@@ -6024,6 +6075,12 @@
                   repos.splice(currentMatch.repoIndex, 1);
                 }
               }
+
+              repos = repos.map(repo => ({
+                ...repo,
+                releaseEnabled: true,
+                releaseBranch: ''
+              }));
 
               next[autoIndex] = {
                 ...oldPush,
@@ -6063,20 +6120,26 @@
           }
 
           const pluginName = this.pluginSourceEditTarget.name;
-          const currentDisableStoreCheck = this.config.ignoredPlugins.includes(pluginName);
+          const currentDisableStoreCheck = (this.config.disableStoreCheckPlugins || []).includes(pluginName);
           if (this.pluginSourceEditDisableStoreCheck !== currentDisableStoreCheck) {
+            if (!Array.isArray(this.config.disableStoreCheckPlugins)) {
+              this.config.disableStoreCheckPlugins = [];
+            }
+
             if (this.pluginSourceEditDisableStoreCheck) {
-              await this.api('/ignored-plugins', 'POST', { pluginName });
-              if (!this.config.ignoredPlugins.includes(pluginName)) {
-                this.config.ignoredPlugins.push(pluginName);
+              if (!this.config.disableStoreCheckPlugins.includes(pluginName)) {
+                this.config.disableStoreCheckPlugins.push(pluginName);
               }
             } else {
-              const idx = this.config.ignoredPlugins.indexOf(pluginName);
+              const idx = this.config.disableStoreCheckPlugins.indexOf(pluginName);
               if (idx >= 0) {
-                await this.api(`/ignored-plugins/${idx}`, 'DELETE');
-                this.config.ignoredPlugins.splice(idx, 1);
+                this.config.disableStoreCheckPlugins.splice(idx, 1);
               }
             }
+
+            await this.api('/mirrors', 'POST', {
+              disableStoreCheckPlugins: this.config.disableStoreCheckPlugins
+            });
             changedStoreCheck = true;
           }
 
