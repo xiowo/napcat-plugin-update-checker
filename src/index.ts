@@ -1054,15 +1054,27 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             let autoTriggeredCount = 0;
             if (pluginState.config.gitPushOnFirstRepoAdd === true) {
                 const addedReposByConfig = collectAddedReposByConfigId(previousConfigs, nextConfigs);
-                for (const item of addedReposByConfig) {
-                    try {
-                        await runGitPushDebugForConfig(item.configId, undefined, {
-                            repoKeys: item.repos.map(repo => buildRepoIdentity(repo))
-                        });
-                        autoTriggeredCount++;
-                    } catch (e) {
-                        ctx.logger.warn(`首次添加仓库后自动推送失败，configId=${item.configId}:`, e);
-                    }
+                autoTriggeredCount = addedReposByConfig.length;
+
+                if (autoTriggeredCount > 0) {
+                    void Promise.allSettled(
+                        addedReposByConfig.map((item) =>
+                            runGitPushDebugForConfig(item.configId, undefined, {
+                                repoKeys: item.repos.map(repo => buildRepoIdentity(repo))
+                            })
+                                .then((result) => {
+                                    if (!result.ok) {
+                                        ctx.logger.warn(`首次添加仓库后自动推送返回失败，configId=${item.configId}: ${result.message}`);
+                                    }
+                                })
+                                .catch((e) => {
+                                    ctx.logger.warn(`首次添加仓库后自动推送异常，configId=${item.configId}:`, e);
+                                })
+                        )
+                    ).then((results) => {
+                        const successCount = results.filter(item => item.status === 'fulfilled').length;
+                        ctx.logger.info(`首次添加仓库后后台自动推送已完成：${successCount}/${autoTriggeredCount}`);
+                    });
                 }
             }
 
