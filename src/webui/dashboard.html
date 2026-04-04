@@ -5803,8 +5803,22 @@
 
           const currentGitEnabled = this.hasGitPushRepoForPlugin(this.pluginSourceEditTarget);
           const parsedRepo = this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl);
-          const canEnableGit = !currentGitEnabled && this.pluginSourceEditUseGit && !!parsedRepo;
+          const canEnableGit = !currentGitEnabled && this.pluginSourceEditUseGit;
           const canDisableGit = currentGitEnabled && !this.pluginSourceEditUseGit;
+
+          const currentGitMatch = this.getAutoGitPushRepoMatch(this.pluginSourceEditTarget);
+          let currentGitRepo = null;
+          if (currentGitMatch && currentGitMatch.autoIndex >= 0) {
+            const currentPush = this.gitPushConfigs[currentGitMatch.autoIndex];
+            const currentRepos = this.getGitPushRepos(currentPush);
+            currentGitRepo = currentRepos[currentGitMatch.repoIndex] || null;
+          }
+
+          const gitRepoChanged = this.pluginSourceEditUseGit && !!parsedRepo && (
+            !currentGitRepo ||
+            String(currentGitRepo.owner || '').trim().toLowerCase() !== String(parsedRepo.owner || '').trim().toLowerCase() ||
+            String(currentGitRepo.repo || '').trim().toLowerCase() !== String(parsedRepo.repo || '').trim().toLowerCase()
+          );
 
           const autoPush = this.getAutoGitPushConfig();
           const currentPushName = String(autoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
@@ -5817,7 +5831,7 @@
             || !this.isSameStringArray(nextGroups, currentGroups)
             || !this.isSameStringArray(nextUsers, currentUsers);
 
-          return canSwitchSource || storeCheckChanged || canEnableGit || canDisableGit || pushInfoChanged;
+          return canSwitchSource || storeCheckChanged || canEnableGit || canDisableGit || gitRepoChanged || pushInfoChanged;
         },
 
         openPluginSourceEdit(installedPlugin) {
@@ -5827,11 +5841,23 @@
           if (this.pluginSourceEditOptions.length > 0 && !this.pluginSourceEditOptions.find(v => v.source === this.pluginSourceEditValue)) {
             this.pluginSourceEditValue = this.pluginSourceEditOptions[0].source;
           }
-          this.pluginSourceEditUseGit = this.hasGitPushRepoForPlugin(installedPlugin);
-          this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
-          this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
 
           const autoPush = this.getAutoGitPushConfig();
+          const currentGitMatch = this.getAutoGitPushRepoMatch(installedPlugin);
+
+          this.pluginSourceEditUseGit = !!currentGitMatch;
+          this.pluginSourceEditDisableStoreCheck = this.config.ignoredPlugins.includes(installedPlugin.name);
+
+          if (currentGitMatch && currentGitMatch.autoIndex >= 0) {
+            const currentPush = this.gitPushConfigs[currentGitMatch.autoIndex];
+            const currentRepos = this.getGitPushRepos(currentPush);
+            const currentRepo = currentRepos[currentGitMatch.repoIndex];
+            this.pluginSourceEditRepoUrl = String(currentRepo?.repoUrl || '').trim()
+              || (currentRepo?.owner && currentRepo?.repo ? `https://github.com/${currentRepo.owner}/${currentRepo.repo}` : '');
+          } else {
+            this.pluginSourceEditRepoUrl = this.getInstalledPluginRepoUrl(installedPlugin);
+          }
+
           this.pluginSourceEditPushName = String(autoPush?.name || this.AUTO_GIT_PUSH_DEFAULT_NAME).trim();
           this.pluginSourceEditPushNotifyGroupsStr = Array.isArray(autoPush?.notifyGroups) ? autoPush.notifyGroups.join(', ') : '';
           this.pluginSourceEditPushNotifyUsersStr = Array.isArray(autoPush?.notifyUsers) ? autoPush.notifyUsers.join(', ') : '';
@@ -5855,11 +5881,17 @@
         onPluginSourceEditGitToggle() {
           if (this.pluginSourceEditUseGit) {
             this.pluginSourceEditDisableStoreCheck = true;
+          } else if (this.pluginSourceEditDisableStoreCheck) {
+            this.pluginSourceEditDisableStoreCheck = false;
           }
         },
 
         async savePluginSourceEdit() {
           if (!this.pluginSourceEditTarget) return;
+
+          if (!this.pluginSourceEditUseGit && this.pluginSourceEditDisableStoreCheck) {
+            this.pluginSourceEditDisableStoreCheck = false;
+          }
 
           let switchedSource = false;
           let createdGitPush = false;
@@ -5905,9 +5937,16 @@
             || !this.isSameStringArray(autoPushNotifyUsers, currentAutoPushUsers);
 
           if (this.pluginSourceEditUseGit || autoPushInfoChanged || !this.pluginSourceEditUseGit) {
+            const repoInput = String(this.pluginSourceEditRepoUrl || '').trim();
             const parsed = this.pluginSourceEditUseGit ? this.parseGitRepoInfoFromUrl(this.pluginSourceEditRepoUrl) : null;
+
+            if (this.pluginSourceEditUseGit && !repoInput) {
+              showToast('请先填写插件仓库地址，再保存', 'error');
+              return;
+            }
+
             if (this.pluginSourceEditUseGit && !parsed) {
-              showToast('未识别到有效仓库地址，无法启用 Git 检测更新', 'error');
+              showToast('插件仓库地址格式无效，请填写例如：https://github.com/owner/repo', 'error');
               return;
             }
 
@@ -5932,7 +5971,17 @@
 
             if (autoIndex >= 0) {
               const oldPush = next[autoIndex] || buildDefaultAutoPush();
-              let repos = this.getGitPushRepos(oldPush).map(repo => ({ ...repo }));
+              const oldReposSnapshot = this.getGitPushRepos(oldPush).map(repo => ({
+                provider: String(repo.provider || '').trim(),
+                repoUrl: String(repo.repoUrl || '').trim(),
+                owner: String(repo.owner || '').trim(),
+                repo: String(repo.repo || '').trim(),
+                commitEnabled: repo.commitEnabled !== false,
+                commitBranch: String(repo.commitBranch || '').trim(),
+                releaseEnabled: repo.releaseEnabled === true,
+                releaseBranch: String(repo.releaseBranch || '').trim()
+              }));
+              let repos = oldReposSnapshot.map(repo => ({ ...repo }));
               const reposBeforeLength = repos.length;
 
               if (this.pluginSourceEditUseGit && parsed) {
@@ -5987,7 +6036,19 @@
                 repos
               };
 
+              const reposAfterSnapshot = repos.map(repo => ({
+                provider: String(repo.provider || '').trim(),
+                repoUrl: String(repo.repoUrl || '').trim(),
+                owner: String(repo.owner || '').trim(),
+                repo: String(repo.repo || '').trim(),
+                commitEnabled: repo.commitEnabled !== false,
+                commitBranch: String(repo.commitBranch || '').trim(),
+                releaseEnabled: repo.releaseEnabled === true,
+                releaseBranch: String(repo.releaseBranch || '').trim()
+              }));
+
               const repoChanged = repos.length !== reposBeforeLength
+                || JSON.stringify(oldReposSnapshot) !== JSON.stringify(reposAfterSnapshot)
                 || autoPushInfoChanged
                 || String(oldPush.name || '') !== autoPushName
                 || !this.isSameStringArray(oldPush.notifyGroups || [], autoPushNotifyGroups)
