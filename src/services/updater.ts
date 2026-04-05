@@ -249,7 +249,7 @@ function findGitReleaseRepoForPlugin(
         if (!rid) continue;
 
         if (rid === exactAutoId || rid === rawName || rid === slugName) {
-            pluginState.logger.info(`[Git检测] ${plugin.name} 通过 repo.id 命中自动检测仓库: ${rid} -> ${repo.repoPath}`);
+            pluginState.logger.debug(`[Git检测] ${plugin.name} 通过 repo.id 命中自动检测仓库: ${rid} -> ${repo.repoPath}`);
             return repo;
         }
     }
@@ -270,7 +270,7 @@ async function checkGitReleaseUpdateForPlugin(
 ): Promise<UpdateInfo | null> {
     const hit = findGitReleaseRepoForPlugin(plugin, gitReleaseRepoMap);
     if (!hit) {
-        pluginState.logger.info(`[Git检测] ${plugin.name} 未命中 repo.id 绑定，跳过 Git 检测`);
+        pluginState.logger.debug(`[Git检测] ${plugin.name} 未命中 repo.id 绑定，跳过 Git 检测`);
         return null;
     }
 
@@ -692,7 +692,7 @@ export async function checkAllUpdates(): Promise<UpdateInfo[]> {
         }
 
         const parsedRepo = installedRepoPathMap.get(plugin.name) || '';
-        pluginState.logger.info(`[Git检测] ${plugin.name} 未命中自动检测仓库（repo=${parsedRepo || '未解析'}）`);
+        pluginState.logger.debug(`[Git检测] ${plugin.name} 未命中自动检测仓库（repo=${parsedRepo || '未解析'}）`);
 
         // 禁用商店源检测且未开启 Git 检测时，跳过
         if (disableStoreCheck.has(plugin.name)) {
