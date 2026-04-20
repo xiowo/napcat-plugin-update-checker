@@ -72,11 +72,13 @@ jobs:
           # 复制需要的文件到临时目录
           cp dist/index.mjs release/
           cp dist/package.json release/
+          cp dist/icon.png release/
           cp -r dist/webui release/
+          cp -r dist/resources release/
 
           # 进入临时目录并压缩
           cd release
-          zip -r ../${PLUGIN_NAME}.zip index.mjs package.json webui
+          zip -r ../${PLUGIN_NAME}.zip index.mjs package.json icon.png webui resources
 
       - name: Verify zip contents
         run: |
