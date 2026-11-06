@@ -157,7 +157,7 @@ function copyAssetsPlugin() {
     };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     define: {
         '__PLUGIN_VERSION__': JSON.stringify(pkg.version),
     },
@@ -181,5 +181,5 @@ export default defineConfig({
         },
         outDir: 'dist',
     },
-    plugins: [nodeResolve(), copyAssetsPlugin(), copyShotiumPlugin(), napcatHmrPlugin()],
-});
+    plugins: [nodeResolve(), copyAssetsPlugin(), copyShotiumPlugin(), napcatHmrPlugin({ enabled: mode !== 'standalone' })],
+}));

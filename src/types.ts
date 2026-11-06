@@ -15,6 +15,8 @@
 export interface PluginConfig {
     /** 全局开关：是否启用插件功能 */
     enabled: boolean;
+    /** 额外允许加载的插件 ID，重启 NapCat 后生效 */
+    pluginWhitelist: string[];
     /** 触发命令前缀 */
     commandPrefix: string;
     /** 主人 QQ（多个使用英文逗号分隔），设置后仅主人可执行管理命令 */

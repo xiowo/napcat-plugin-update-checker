@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import type { NapCatPluginContext, PluginLogger } from 'napcat-types/napcat-onebot/network/plugin/types';
 import { DEFAULT_CONFIG } from '../config';
+import { normalizePluginWhitelist } from '../services/plugin-whitelist';
 import type { PluginConfig, GroupConfig, PluginInfo, UpdateInfo } from '../types';
 
 // ==================== 配置清洗工具 ====================
@@ -32,6 +33,7 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     const out: PluginConfig = { ...DEFAULT_CONFIG, groupConfigs: {} };
 
     if (typeof raw.enabled === 'boolean') out.enabled = raw.enabled;
+    out.pluginWhitelist = normalizePluginWhitelist(raw.pluginWhitelist);
     if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
     if (typeof raw.masterQQ === 'string') out.masterQQ = raw.masterQQ.trim();
     if (typeof raw.silentNoPermission === 'boolean') out.silentNoPermission = raw.silentNoPermission;
@@ -296,6 +298,7 @@ class PluginState {
      */
     updateConfig(partial: Partial<PluginConfig>): void {
         this.config = { ...this.config, ...partial };
+        this.config.pluginWhitelist = normalizePluginWhitelist(this.config.pluginWhitelist);
         this.saveConfig();
     }
 

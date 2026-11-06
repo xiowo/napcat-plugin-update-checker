@@ -9,6 +9,7 @@ import type { PluginConfig } from './types';
 /** 默认配置 */
 export const DEFAULT_CONFIG: PluginConfig = {
     enabled: true,
+    pluginWhitelist: [],
     commandPrefix: '#更新插件',
     masterQQ: '',
     silentNoPermission: false,
@@ -72,12 +73,12 @@ export function buildConfigSchema(ctx: NapCatPluginContext): PluginConfigSchema 
                     </div>
                     <div>
                         <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #8B5A2B;">插件更新检测</h3>
-                        <p style="margin: 2px 0 0; font-size: 12px; color: #A0826D;">napcat-plugin-update-checker</p>
+                        <p style="margin: 2px 0 0; font-size: 12px; color: #A0826D;">${ctx.pluginName}</p>
                     </div>
                 </div>
                 <p style="margin: 0; font-size: 13px; color: #8B7355;">
                     自动检查并更新已安装的 NapCat 插件 |
-                    前往 <a href="/plugin/napcat-plugin-update-checker/page/update-checker-dashboard" target="_blank" style="background: rgba(210, 140, 80, 0.15); padding: 2px 6px; border-radius: 4px; color: #D28C50;">扩展页面</a> 进行配置
+                    前往 <a href="/plugin/${encodeURIComponent(ctx.pluginName)}/page/update-checker-dashboard" target="_blank" style="background: rgba(210, 140, 80, 0.15); padding: 2px 6px; border-radius: 4px; color: #D28C50;">扩展页面</a> 进行配置
                 </p>
                 <!-- 狐狸 emoji 装饰 -->
                 <style>

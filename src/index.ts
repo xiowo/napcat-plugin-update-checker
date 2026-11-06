@@ -26,6 +26,7 @@ import { pluginState } from './core/state';
 import { handleMessage } from './handlers/message-handler';
 import { startScheduler, stopScheduler } from './services/scheduler';
 import { initRenderer, cleanupRenderer } from './services/renderer';
+import { installPluginWhitelist, normalizePluginWhitelist, type PluginWhitelistManager } from './services/plugin-whitelist';
 import { ensureGitDefaultBranches, runGitPushDebugForConfig } from './services/git-updater';
 import {
     pingRawMirrors,
@@ -45,6 +46,8 @@ import * as path from 'path';
 /** NapCat WebUI 读取此导出来展示配置面板 */
 export let plugin_config_ui: PluginConfigSchema = [];
 
+let pluginWhitelist: ReturnType<typeof installPluginWhitelist> | null = null;
+
 // ==================== 生命周期函数 ====================
 
 
@@ -56,6 +59,11 @@ export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
     try {
         // 初始化全局状态（加载配置）
         pluginState.init(ctx);
+        pluginWhitelist?.dispose();
+        pluginWhitelist = installPluginWhitelist(
+            ctx.pluginManager as unknown as PluginWhitelistManager,
+            pluginState.config.pluginWhitelist,
+        );
         initRenderer();
 
         ctx.logger.info('插件初始化中...');
@@ -65,6 +73,7 @@ export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
 
         // 注册 WebUI 路由
         registerWebUIRoutes(ctx);
+        await pluginWhitelist.registerPlugins(ctx.logger);
 
         // 启动时补全 Git 默认分支（若未指定）
         await ensureGitDefaultBranches();
@@ -74,6 +83,8 @@ export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
 
         ctx.logger.info('插件初始化完成');
     } catch (error) {
+        pluginWhitelist?.dispose();
+        pluginWhitelist = null;
         ctx.logger.error('插件初始化失败:', error);
     }
 };
@@ -104,6 +115,8 @@ export const plugin_onevent: PluginModule['plugin_onevent'] = async (ctx, event)
  * 必须清理定时器、关闭连接等资源
  */
 export const plugin_cleanup: PluginModule['plugin_cleanup'] = async (ctx) => {
+    pluginWhitelist?.dispose();
+    pluginWhitelist = null;
     try {
         // 停止定时检查更新
         stopScheduler();
@@ -727,6 +740,7 @@ function registerWebUIRoutes(ctx: NapCatPluginContext) {
             if (body?.notifyUsers !== undefined) pluginState.config.notifyUsers = body.notifyUsers;
             if (body?.pushUpdateToMaster !== undefined) pluginState.config.pushUpdateToMaster = Boolean(body.pushUpdateToMaster);
             if (body?.enabled !== undefined) pluginState.config.enabled = body.enabled;
+            if (body?.pluginWhitelist !== undefined) pluginState.config.pluginWhitelist = normalizePluginWhitelist(body.pluginWhitelist);
             if (body?.commandPrefix !== undefined) pluginState.config.commandPrefix = body.commandPrefix;
             if (body?.masterQQ !== undefined) pluginState.config.masterQQ = String(body.masterQQ || '').trim();
             if (body?.silentNoPermission !== undefined) pluginState.config.silentNoPermission = Boolean(body.silentNoPermission);

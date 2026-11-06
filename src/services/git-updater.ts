@@ -191,7 +191,7 @@ function getCurrentPluginVersion(): string {
     try {
         if (!pluginState || !pluginState.pluginManager) return '';
         const plugins = pluginState.pluginManager.getAllPlugins();
-        const me = plugins.find((p: any) => p.packageJson?.name === 'napcat-plugin-update-checker');
+        const me = plugins.find((p: any) => p.id === pluginState.ctx.pluginName);
         if (me) {
             return me.version || me.packageJson?.version || '';
         }
@@ -863,7 +863,7 @@ function buildRenderHtml(_config: GitPushConfig, updates: GitUpdateItem[]): stri
         return `<!DOCTYPE html><html lang="zh-CN"><body><div class="container">${itemsHtml}</div></body></html>`;
     }
 
-    const pluginName = 'napcat-plugin-update-checker';
+    const pluginName = pluginState.ctx.pluginName;
     const pluginVersion = getCurrentPluginVersion();
 
     let html = template

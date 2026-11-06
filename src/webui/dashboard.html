@@ -2381,6 +2381,22 @@
       <!-- 插件设置页面 -->
       <div x-show="currentTab === 'pluginSettings' && !showSecretPanel" x-transition.opacity
         class="max-w-5xl mx-auto space-y-6">
+        <div class="card p-5">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h3 class="font-bold text-lg" style="color: var(--text)">插件加载白名单</h3>
+            <span class="text-xs" style="color: var(--text-secondary)">保存后重启 NapCat 生效</span>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="plugin-whitelist" class="text-sm font-medium" style="color: var(--text-secondary)">额外允许加载的插件 ID</label>
+            <textarea id="plugin-whitelist" x-model="config.pluginWhitelistStr" @input="markNonSwitchChanged()"
+              @change="markNonSwitchChanged()" rows="5" class="input w-full font-mono text-sm"
+              placeholder="napcat-plugin-example&#10;napcat-plugin-another"></textarea>
+            <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+              填写插件 package.json 中的 name，每行一个，也支持中英文逗号分隔。空列表仅保留 NapCat 原有白名单；保留敏感词检查，不会自动启用已禁用的插件。
+            </p>
+          </div>
+        </div>
+
         <!-- 基础设置卡片 -->
         <div class="card p-5">
           <div class="flex justify-between items-center mb-4">
@@ -3134,7 +3150,7 @@
       if (pluginMatch) return pluginMatch[1];
       const extMatch = location.pathname.match(/\/ext\/([^\/]+)/);
       if (extMatch) return extMatch[1];
-      return 'napcat-plugin-update-checker';
+      return 'napcat-plugin-builtin';
     }
 
     const PLUGIN_NAME = resolvePluginName();
@@ -3144,6 +3160,8 @@
     function createDefaultConfig() {
       return {
         enabled: true,
+        pluginWhitelist: [],
+        pluginWhitelistStr: '',
         commandPrefix: '#更新插件',
         masterQQ: '',
         silentNoPermission: false,
@@ -3969,8 +3987,11 @@
             const userStr = (this.config.notifyUsersStr || '').trim();
             this.config.notifyGroups = groupStr ? groupStr.split(/[,，\s]+/).filter(v => v !== '') : [];
             this.config.notifyUsers = userStr ? userStr.split(/[,，\s]+/).filter(v => v !== '') : [];
+            const pluginWhitelist = [...new Set((this.config.pluginWhitelistStr || '').split(/[,，\s]+/).filter(Boolean))];
+            const whitelistChanged = JSON.stringify(pluginWhitelist) !== JSON.stringify(this.config.pluginWhitelist || []);
 
             await this.api('/mirrors', 'POST', {
+              pluginWhitelist,
               enabled: this.config.enabled,
               commandPrefix: this.config.commandPrefix,
               masterQQ: this.config.masterQQ,
@@ -3987,10 +4008,12 @@
               ignoredPlugins: this.config.ignoredPlugins,
               disableStoreCheckPlugins: this.config.disableStoreCheckPlugins || []
             });
+            this.config.pluginWhitelist = pluginWhitelist;
+            this.config.pluginWhitelistStr = pluginWhitelist.join('\n');
             // 保存成功后重置状态
             this.originalConfig = JSON.parse(JSON.stringify(this.config));
             this.hasUnsavedChanges = false;
-            showToast('配置保存成功', 'success');
+            showToast(whitelistChanged ? '配置已保存，白名单重启 NapCat 后生效' : '配置保存成功', 'success');
           } catch (e) {
             console.error(e);
             showToast('配置保存失败: ' + e.message, 'error');
@@ -4930,6 +4953,7 @@
             const localDraft = keepLocalDraft
               ? {
                 commandPrefix: this.config.commandPrefix,
+                pluginWhitelistStr: this.config.pluginWhitelistStr,
                 updateMode: this.config.updateMode,
                 checkInterval: this.config.checkInterval,
                 notifyGroupsStr: this.config.notifyGroupsStr,
@@ -4939,6 +4963,8 @@
               : null;
 
             const nextConfig = data.config || createDefaultConfig();
+            nextConfig.pluginWhitelist = Array.isArray(nextConfig.pluginWhitelist) ? nextConfig.pluginWhitelist : [];
+            nextConfig.pluginWhitelistStr = nextConfig.pluginWhitelist.join('\n');
             nextConfig.notifyGroupsStr = (nextConfig.notifyGroups || []).join(', ');
             nextConfig.notifyUsersStr = (nextConfig.notifyUsers || []).join(', ');
             nextConfig.masterQQ = nextConfig.masterQQ || '';
@@ -5559,7 +5585,7 @@
           // 只检查非开关类的配置项
           const keysToCheck = [
             'commandPrefix', 'updateMode', 'checkInterval',
-            'notifyGroupsStr', 'notifyUsersStr', 'masterQQ'
+            'notifyGroupsStr', 'notifyUsersStr', 'masterQQ', 'pluginWhitelistStr'
           ];
           for (const key of keysToCheck) {
             if (String(this.config[key]) !== String(this.originalConfig[key])) {
