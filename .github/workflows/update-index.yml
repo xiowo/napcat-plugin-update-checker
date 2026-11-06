@@ -63,7 +63,7 @@ jobs:
 
           # 构造下载链接
           REPO_FULL="${{ github.repository }}"
-          DOWNLOAD_URL="https://github.com/${REPO_FULL}/releases/download/${VERSION}/${PLUGIN_ID}.zip"
+          DOWNLOAD_URL="https://github.com/${REPO_FULL}/releases/download/${VERSION}/napcat-plugin-update-checker.zip"
 
           # 如果没有 homepage，使用仓库地址
           if [ -z "$HOMEPAGE" ]; then
