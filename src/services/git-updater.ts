@@ -7,6 +7,7 @@ import type { GitPushConfig, GitPushRepoConfig, GitUpdateCache, GitProviderName 
 import { getDefaultBranch, getRepositoryData } from './git-api';
 import { buildForwardNodesFromTexts, sendForwardMessage } from './forward-message';
 import { markGitDetectedVersion } from './update-registry';
+import { renderHtml } from './renderer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -877,26 +878,13 @@ function buildRenderHtml(_config: GitPushConfig, updates: GitUpdateItem[]): stri
     return html;
 }
 
-async function renderWithPuppeteer(html: string): Promise<string | null> {
+async function renderWithShotium(html: string): Promise<string | null> {
     try {
-        const res = await fetch('http://localhost:6099/plugin/napcat-plugin-puppeteer/api/render', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                html,
-                encoding: 'base64',
-                selector: '.container',
-                setViewport: { width: 760, height: 800, deviceScaleFactor: 2 }
-            })
-        });
-        const json = await res.json();
-        if (json?.code === 0 && json?.data) {
-            return json.data as string;
-        }
+        return await renderHtml(html);
     } catch (e) {
-        pluginState.logger.warn('调用 puppeteer 渲染失败:', e);
+        pluginState.logger.warn('调用 Shotium 渲染失败:', e);
+        return null;
     }
-    return null;
 }
 
 async function sendTextMessage(targetId: string, text: string, isGroup: boolean): Promise<void> {
@@ -957,7 +945,7 @@ function buildRepoForwardNodesWithNotice(
     return buildForwardNodesFromTexts(texts);
 }
 
-const RENDER_FALLBACK_NOTICE = '⚠️ 渲染失败，请检查渲染插件是否安装或正常运行';
+const RENDER_FALLBACK_NOTICE = '⚠️ 渲染失败，请检查 Shotium 原生依赖是否完整及运行环境是否支持';
 
 function withRenderFallbackNotice(text: string): string {
     const content = String(text || '').trim();
@@ -991,14 +979,14 @@ async function sendUpdates(
     let renderFailed = false;
     if (config.renderMode === 'render') {
         const html = buildRenderHtml(config, updates);
-        const base64 = await renderWithPuppeteer(html);
+        const base64 = await renderWithShotium(html);
         if (base64) {
             for (const gid of groups) await sendImageMessage(gid, base64, true);
             for (const uid of users) await sendImageMessage(uid, base64, false);
             return;
         }
         renderFailed = true;
-        pluginState.logger.warn('渲染推送失败，已自动降级为文本推送，请检查渲染插件是否安装或正常运行');
+        pluginState.logger.warn('渲染推送失败，已自动降级为文本推送，请检查 Shotium 原生依赖是否完整及运行环境是否支持');
     }
 
     const repoCount = new Set(updates.map(item => item.repoPath)).size;

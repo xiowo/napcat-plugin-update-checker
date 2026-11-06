@@ -1,7 +1,7 @@
 import { resolve, dirname } from 'path';
 import { defineConfig } from 'vite';
 import nodeResolve from '@rollup/plugin-node-resolve';
-import { builtinModules } from 'module';
+import { builtinModules, createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { napcatHmrPlugin } from 'napcat-plugin-debug-cli/vite';
@@ -15,8 +15,55 @@ const nodeModules = [
     ...builtinModules.map((m) => `node:${m}`),
 ].flat();
 
-// 依赖排除（如有外部依赖需排除，在此添加）
-const external: string[] = [];
+// 原生引擎依赖 SDK 的相对路径布局，不能合并进 index.mjs。
+const external = ['@pixel.js/shotium'];
+
+function copyShotiumPlugin() {
+    return {
+        name: 'copy-shotium',
+        writeBundle() {
+            const require = createRequire(import.meta.url);
+            const manifestPath = require.resolve('@pixel.js/shotium/package.json');
+            const sdkDir = dirname(manifestPath);
+            const sdk = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const sdkRequire = createRequire(manifestPath);
+            const modulesDir = resolve(__dirname, 'dist/node_modules');
+            const sdkDest = resolve(modulesDir, '@pixel.js/shotium');
+            fs.mkdirSync(sdkDest, { recursive: true });
+            fs.copyFileSync(manifestPath, resolve(sdkDest, 'package.json'));
+            fs.cpSync(resolve(sdkDir, 'dist'), resolve(sdkDest, 'dist'), { recursive: true });
+
+            let copied = 0;
+            const missing: string[] = [];
+            for (const name of Object.keys(sdk.optionalDependencies || {})) {
+                let nativeManifestPath: string;
+                try {
+                    nativeManifestPath = sdkRequire.resolve(`${name}/package.json`);
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') throw error;
+                    missing.push(name);
+                    continue;
+                }
+                const nativeDir = dirname(nativeManifestPath);
+                const nativePkg = JSON.parse(fs.readFileSync(nativeManifestPath, 'utf8'));
+                if (nativePkg.version !== sdk.version) {
+                    throw new Error(`Shotium 版本不匹配: ${name}@${nativePkg.version}, SDK@${sdk.version}`);
+                }
+                for (const file of ['shotium.node', 'shotium_data.pak', 'shotium_strings.pak']) {
+                    if (!fs.existsSync(resolve(nativeDir, file))) {
+                        throw new Error(`Shotium 原生包缺少文件: ${name}/${file}`);
+                    }
+                }
+                fs.cpSync(nativeDir, resolve(modulesDir, name), { recursive: true, dereference: true });
+                copied++;
+            }
+            if (copied === 0 || (process.env.SHOTIUM_ALL_PLATFORMS === '1' && missing.length > 0)) {
+                throw new Error(`Shotium 原生依赖不完整，请使用 pnpm 9 安装依赖。缺少: ${missing.join(', ')}`);
+            }
+            console.log(`[copy-shotium] 已复制 SDK 和 ${copied} 个平台的原生引擎`);
+        },
+    };
+}
 
 /**
  * 递归复制目录
@@ -62,7 +109,7 @@ function copyAssetsPlugin() {
                         icon: pkg.icon,
                         description: pkg.description,
                         author: pkg.author,
-                        dependencies: pkg.dependencies,
+                        dependencies: Object.fromEntries(external.map(name => [name, pkg.dependencies[name]])),
                     };
                     if (pkg.napcat) {
                         distPkg.napcat = pkg.napcat;
@@ -134,5 +181,5 @@ export default defineConfig({
         },
         outDir: 'dist',
     },
-    plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin()],
+    plugins: [nodeResolve(), copyAssetsPlugin(), copyShotiumPlugin(), napcatHmrPlugin()],
 });

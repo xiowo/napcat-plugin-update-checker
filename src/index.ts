@@ -25,6 +25,7 @@ import { buildConfigSchema, DEFAULT_CONFIG } from './config';
 import { pluginState } from './core/state';
 import { handleMessage } from './handlers/message-handler';
 import { startScheduler, stopScheduler } from './services/scheduler';
+import { initRenderer, cleanupRenderer } from './services/renderer';
 import { ensureGitDefaultBranches, runGitPushDebugForConfig } from './services/git-updater';
 import {
     pingRawMirrors,
@@ -55,6 +56,7 @@ export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
     try {
         // 初始化全局状态（加载配置）
         pluginState.init(ctx);
+        initRenderer();
 
         ctx.logger.info('插件初始化中...');
 
@@ -105,8 +107,11 @@ export const plugin_cleanup: PluginModule['plugin_cleanup'] = async (ctx) => {
     try {
         // 停止定时检查更新
         stopScheduler();
-        // 清理其他资源
-        pluginState.cleanup();
+        try {
+            await cleanupRenderer();
+        } finally {
+            pluginState.cleanup();
+        }
         ctx.logger.info('插件已卸载');
     } catch (e) {
         ctx.logger.warn('插件卸载时出错:', e);

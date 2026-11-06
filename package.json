@@ -23,7 +23,15 @@
     "minVersion": "4.14.0",
     "homepage": ""
   },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": ["win32", "darwin", "linux"],
+      "cpu": ["x64", "arm64"],
+      "libc": ["glibc", "musl"]
+    }
+  },
   "dependencies": {
+    "@pixel.js/shotium": "0.12.4",
     "napcat-types": "0.0.16"
   },
   "devDependencies": {

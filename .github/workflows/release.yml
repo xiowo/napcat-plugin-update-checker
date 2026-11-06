@@ -33,7 +33,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
 
       - name: Install dependencies
         run: pnpm install
@@ -60,6 +60,8 @@ jobs:
         run: cd src/webui && pnpm install
 
       - name: Build project
+        env:
+          SHOTIUM_ALL_PLATFORMS: '1'
         run: pnpm run build
 
       - name: Prepare release package
@@ -75,10 +77,11 @@ jobs:
           cp dist/icon.png release/
           cp -r dist/webui release/
           cp -r dist/resources release/
+          cp -r dist/node_modules release/
 
           # 进入临时目录并压缩
           cd release
-          zip -r ../${PLUGIN_NAME}.zip index.mjs package.json icon.png webui resources
+          zip -r ../${PLUGIN_NAME}.zip index.mjs package.json icon.png webui resources node_modules
 
       - name: Verify zip contents
         run: |
